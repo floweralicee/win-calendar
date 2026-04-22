@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+.DS_Store
+*.local
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.log
+.env
+.env.*
+!.env.example
+
+# TypeScript composite build artifacts emitted next to vite.config.ts
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
