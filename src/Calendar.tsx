@@ -22,9 +22,11 @@ type CalendarProps = {
   month: number
   winsByDate: WinsByDate
   onSelectWin: (win: Win) => void
+  onDeleteWin: (win: Win) => void
   onPreviousMonth: () => void
   onNextMonth: () => void
   onJumpToToday: () => void
+  onOpenJournal: () => void
 }
 
 type CalendarCell =
@@ -59,9 +61,11 @@ export function Calendar({
   month,
   winsByDate,
   onSelectWin,
+  onDeleteWin,
   onPreviousMonth,
   onNextMonth,
   onJumpToToday,
+  onOpenJournal,
 }: CalendarProps) {
   const cells = buildMonthGrid(year, month)
 
@@ -96,10 +100,20 @@ export function Calendar({
             <span aria-hidden="true">›</span>
           </button>
         </div>
-        <div className="calendar-year" aria-label={String(year)}>
-          <span className="calendar-year-bullet" aria-hidden="true">•</span>
-          <span className="calendar-year-number">{year}</span>
-          <span className="calendar-year-bullet" aria-hidden="true">•</span>
+        <div className="calendar-header-right">
+          <div className="calendar-year" aria-label={String(year)}>
+            <span className="calendar-year-bullet" aria-hidden="true">•</span>
+            <span className="calendar-year-number">{year}</span>
+            <span className="calendar-year-bullet" aria-hidden="true">•</span>
+          </div>
+          <button
+            type="button"
+            className="calendar-journal-button"
+            onClick={onOpenJournal}
+            title="Write tonight's journal"
+          >
+            Journal
+          </button>
         </div>
       </header>
 
@@ -146,6 +160,15 @@ export function Calendar({
                           title={win.title}
                         >
                           {win.title}
+                        </button>
+                        <button
+                          type="button"
+                          className="calendar-win-delete"
+                          onClick={(e) => { e.stopPropagation(); onDeleteWin(win) }}
+                          aria-label={`Delete win: ${win.title}`}
+                          title="Delete this win"
+                        >
+                          🗑
                         </button>
                       </li>
                     ))}
