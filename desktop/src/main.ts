@@ -1,10 +1,28 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, screen } from 'electron'
+import { app, BrowserWindow, globalShortcut, ipcMain, screen, Tray, Menu, nativeImage } from 'electron'
 import path from 'path'
 import fs from 'fs'
 
 // ---------------------------------------------------------------------------
-// Persist pet position across launches using a simple JSON file in userData.
-// We avoid electron-store to keep deps minimal.
+// Single-instance lock — prevent spawning two pets on double-click.
+// ---------------------------------------------------------------------------
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+  // eslint-disable-next-line no-process-exit
+  process.exit(0)
+}
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const PET_SIZE = 128
+const BUBBLE_HEIGHT = 180
+const HONO_BASE_URL = 'http://127.0.0.1:8787'
+const TOGGLE_SHORTCUT = process.platform === 'darwin' ? 'Command+Shift+H' : 'Control+Shift+H'
+
+// ---------------------------------------------------------------------------
+// Persist pet position — written once on quit, not per-frame.
 // ---------------------------------------------------------------------------
 
 type SavedPosition = { x: number; y: number }
@@ -24,11 +42,13 @@ function loadSavedPosition(): SavedPosition | null {
   }
 }
 
-function savePosition(x: number, y: number): void {
+function saveCurrentPosition(): void {
+  if (!mainWindow) return
   try {
+    const [x, y] = mainWindow.getPosition()
     fs.writeFileSync(positionFilePath(), JSON.stringify({ x, y }), 'utf8')
   } catch {
-    // Non-fatal — position just won't persist.
+    // Non-fatal.
   }
 }
 
@@ -36,18 +56,18 @@ function savePosition(x: number, y: number): void {
 // Main window
 // ---------------------------------------------------------------------------
 
-const WINDOW_SIZE = 128
-const HONO_BASE_URL = 'http://127.0.0.1:8787'
-const TOGGLE_SHORTCUT = process.platform === 'darwin' ? 'Command+Shift+H' : 'Control+Shift+H'
-
 let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
+// Track whether the bubble is currently shown so we can correctly restore
+// the sprite-only window height when the window is re-created.
+let isBubbleVisible = false
 
 function getDefaultPosition(): SavedPosition {
   const primaryDisplay = screen.getPrimaryDisplay()
   const { width, height } = primaryDisplay.workAreaSize
   return {
-    x: width - WINDOW_SIZE - 32,
-    y: height - WINDOW_SIZE - 32,
+    x: width - PET_SIZE - 32,
+    y: height - PET_SIZE - 32,
   }
 }
 
@@ -55,9 +75,11 @@ function createPetWindow(): void {
   const saved = loadSavedPosition()
   const { x, y } = saved ?? getDefaultPosition()
 
+  const windowHeight = isBubbleVisible ? PET_SIZE + BUBBLE_HEIGHT : PET_SIZE
+
   mainWindow = new BrowserWindow({
-    width: WINDOW_SIZE,
-    height: WINDOW_SIZE + 160, // extra height for the speech bubble above the pet
+    width: PET_SIZE,
+    height: windowHeight,
     x,
     y,
     frame: false,
@@ -66,6 +88,8 @@ function createPetWindow(): void {
     resizable: false,
     skipTaskbar: true,
     hasShadow: false,
+    // Prevent the window from appearing in Mission Control / Expose on macOS.
+    type: 'panel',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -73,9 +97,9 @@ function createPetWindow(): void {
     },
   })
 
-  // Keep the window on top even over fullscreen apps on macOS.
+  // Keep the window above fullscreen apps on macOS.
   mainWindow.setAlwaysOnTop(true, 'screen-saver')
-  // Do not show in the macOS Expose / Mission Control thumbnails.
+  // Show the pet on every Space, including fullscreen spaces.
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
 
   const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
@@ -90,13 +114,71 @@ function createPetWindow(): void {
   })
 }
 
+function createTray(): void {
+  // Use a PNG for the tray icon — SVG is not supported on all platforms.
+  // Fall back to an empty image if the asset is missing so the app still runs.
+  const iconPath = path.join(__dirname, '../hana-icon/active.svg')
+  let icon: Electron.NativeImage
+  try {
+    icon = nativeImage.createFromPath(iconPath)
+    // Resize to standard menu-bar size (16×16 logical px on macOS).
+    if (!icon.isEmpty()) {
+      icon = icon.resize({ width: 16, height: 16 })
+    }
+  } catch {
+    icon = nativeImage.createEmpty()
+  }
+
+  tray = new Tray(icon)
+  tray.setToolTip('Hana')
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      {
+        label: 'Show Hana',
+        click: () => {
+          if (!mainWindow) createPetWindow()
+          else mainWindow.show()
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        click: () => app.quit(),
+      },
+    ]),
+  )
+}
+
 // ---------------------------------------------------------------------------
 // IPC handlers
 // ---------------------------------------------------------------------------
 
-// The renderer calls this to forward a journal entry to the Hono server.
-// We do the fetch in the main process so Node's fetch (with no CORS restriction)
-// is used rather than the renderer's sandboxed fetch.
+// Delta-based window movement — renderer sends (dx, dy) per rAF tick.
+// We use getPosition() as the source of truth, not a cached JSON value.
+ipcMain.on('pet:moveBy', (_event, { dx, dy }: { dx: number; dy: number }) => {
+  if (!mainWindow) return
+  const [x, y] = mainWindow.getPosition()
+  mainWindow.setPosition(Math.round(x + dx), Math.round(y + dy))
+})
+
+// Expand window upward when the speech bubble opens; shrink when it closes.
+// The sprite stays at the same screen position because we adjust y by the
+// same amount we change the height.
+ipcMain.on('pet:setBubbleVisible', (_event, { visible }: { visible: boolean }) => {
+  if (!mainWindow) return
+  isBubbleVisible = visible
+  const [x, y] = mainWindow.getPosition()
+  if (visible) {
+    mainWindow.setSize(PET_SIZE, PET_SIZE + BUBBLE_HEIGHT)
+    mainWindow.setPosition(x, y - BUBBLE_HEIGHT)
+  } else {
+    mainWindow.setSize(PET_SIZE, PET_SIZE)
+    mainWindow.setPosition(x, y + BUBBLE_HEIGHT)
+  }
+})
+
+// Forward journal submission to the local Hono server from Node so we avoid
+// renderer CORS restrictions.
 ipcMain.handle(
   'journal:submit',
   async (_event, payload: { text: string; dateISO: string }) => {
@@ -123,20 +205,21 @@ ipcMain.handle(
   },
 )
 
-// Renderer sends updated position after each drag so we persist it.
-ipcMain.on('pet:setPosition', (_event, { x, y }: { x: number; y: number }) => {
-  if (mainWindow) {
-    mainWindow.setPosition(Math.round(x), Math.round(y))
-    savePosition(Math.round(x), Math.round(y))
-  }
-})
-
 // ---------------------------------------------------------------------------
 // App lifecycle
 // ---------------------------------------------------------------------------
 
 app.whenReady().then(() => {
   createPetWindow()
+  createTray()
+
+  // Bring the existing window to front if a second instance tries to launch.
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (!mainWindow.isVisible()) mainWindow.show()
+      mainWindow.focus()
+    }
+  })
 
   globalShortcut.register(TOGGLE_SHORTCUT, () => {
     if (!mainWindow) {
@@ -150,17 +233,22 @@ app.whenReady().then(() => {
     }
   })
 
+  // macOS: re-create window when the dock icon is clicked with no open windows.
   app.on('activate', () => {
-    // macOS: re-create window when dock icon is clicked and no windows are open.
     if (BrowserWindow.getAllWindows().length === 0) createPetWindow()
   })
+})
+
+// Persist position once on quit instead of on every drag frame.
+app.on('before-quit', () => {
+  saveCurrentPosition()
 })
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll()
 })
 
-// On macOS the app should stay running even when all windows are closed.
+// macOS: keep the process alive when all windows are closed (tray is the exit).
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })

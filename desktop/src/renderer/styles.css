@@ -26,12 +26,17 @@ body {
 
 /* -------------------------------------------------------------------------
    Pet root — stacks speech bubble above the sprite.
+   The window grows upward when the bubble opens, so the sprite is always
+   anchored at the bottom of the window. Using column-reverse + justify-end
+   keeps the sprite flush to the bottom edge regardless of window height.
    ------------------------------------------------------------------------- */
 
 .pet-root {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-end;
+  height: 100%;
   /* No background — transparent window shows through. */
   position: relative;
   user-select: none;
@@ -220,6 +225,10 @@ body {
 
 .pet-sprite:active {
   cursor: grabbing;
+}
+
+.pet-sprite-hover {
+  cursor: pointer;
 }
 
 .pet-sprite-eat {

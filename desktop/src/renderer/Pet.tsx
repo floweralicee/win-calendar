@@ -1,15 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import activeUrl from '../../../../hana-icon/active.svg?url'
-import eatUrl from '../../../../hana-icon/eat.svg?url'
-import sleepUrl from '../../../../hana-icon/sleep.svg?url'
-import touchUrl from '../../../../hana-icon/touch.svg?url'
+import activeUrl from '@hana-icon/active.svg?url'
+import eatUrl from '@hana-icon/eat.svg?url'
+import sleepUrl from '@hana-icon/sleep.svg?url'
+import touchUrl from '@hana-icon/touch.svg?url'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type PetState = 'active' | 'eat' | 'sleep' | 'touch'
+// States map to the OC Desktop Pet skill's four roles:
+//   active  = idle/default  (active.svg)
+//   hover   = hover/curious (eat.svg  — "noticing you" pose)
+//   eat     = textbox open  (eat.svg  — same sprite, different interaction)
+//   sleep   = long idle     (sleep.svg)
+//   touch   = dragging      (touch.svg)
+type PetState = 'active' | 'hover' | 'eat' | 'sleep' | 'touch'
 
 type SubmitStatus =
   | { kind: 'idle' }
@@ -24,8 +30,10 @@ type SubmitStatus =
 const SLEEP_DELAY_MS = 30_000
 const SUCCESS_DISMISS_MS = 2_000
 
+// Hover and eat both show the eat.svg sprite ("noticing you / open mouth").
 const SVG_BY_STATE: Record<PetState, string> = {
   active: activeUrl,
+  hover: eatUrl,
   eat: eatUrl,
   sleep: sleepUrl,
   touch: touchUrl,
@@ -51,19 +59,27 @@ export function Pet() {
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
-  // Drag state — stored in refs so mouse-move handler never goes stale.
+  // Drag state in refs so mouse-move handler closure never goes stale.
   const isDraggingRef = useRef(false)
-  const dragStartScreenRef = useRef({ x: 0, y: 0 })
-  const windowStartPosRef = useRef({ x: 0, y: 0 })
+  // Last known screen position of the pointer — re-anchored each rAF tick.
+  const lastScreenPosRef = useRef({ x: 0, y: 0 })
+  // Pending rAF handle so we only schedule one frame at a time.
+  const rafHandleRef = useRef<number | null>(null)
+  // Accumulated delta between rAF flushes.
+  const pendingDeltaRef = useRef({ dx: 0, dy: 0 })
 
   // -------------------------------------------------------------------------
-  // Sleep timer — reset on any activity
+  // Sleep timer — reset on any user activity
   // -------------------------------------------------------------------------
 
   const resetSleepTimer = useCallback(() => {
     if (sleepTimerRef.current !== null) clearTimeout(sleepTimerRef.current)
     sleepTimerRef.current = setTimeout(() => {
-      setPetState((current) => (current === 'eat' || current === 'touch' ? current : 'sleep'))
+      setPetState((current) => {
+        // Don't override eat or touch with sleep.
+        if (current === 'eat' || current === 'touch') return current
+        return 'sleep'
+      })
     }, SLEEP_DELAY_MS)
   }, [])
 
@@ -75,33 +91,60 @@ export function Pet() {
   }, [resetSleepTimer])
 
   // -------------------------------------------------------------------------
-  // Focus the textarea when entering eat state
+  // Focus textarea when entering eat state
   // -------------------------------------------------------------------------
 
   useEffect(() => {
     if (petState === 'eat') {
-      // Small delay so the DOM has rendered the textarea.
       setTimeout(() => textareaRef.current?.focus(), 50)
+      window.hana.setBubbleVisible(true)
     }
   }, [petState])
 
   // -------------------------------------------------------------------------
-  // Global mouse-move / mouse-up for dragging
+  // Global mouse-move / mouse-up for dragging (rAF-batched)
   // -------------------------------------------------------------------------
 
   useEffect(() => {
+    function flushMoveDelta() {
+      rafHandleRef.current = null
+      const { dx, dy } = pendingDeltaRef.current
+      if (dx !== 0 || dy !== 0) {
+        window.hana.moveBy(dx, dy)
+        pendingDeltaRef.current = { dx: 0, dy: 0 }
+      }
+    }
+
     function handleMouseMove(event: MouseEvent) {
       if (!isDraggingRef.current) return
-      const deltaX = event.screenX - dragStartScreenRef.current.x
-      const deltaY = event.screenY - dragStartScreenRef.current.y
-      const newX = windowStartPosRef.current.x + deltaX
-      const newY = windowStartPosRef.current.y + deltaY
-      window.hana.setPosition(newX, newY)
+
+      const dx = event.screenX - lastScreenPosRef.current.x
+      const dy = event.screenY - lastScreenPosRef.current.y
+      // Re-anchor immediately so each tick only sends what moved since last tick.
+      lastScreenPosRef.current = { x: event.screenX, y: event.screenY }
+
+      // Accumulate and schedule one rAF flush.
+      pendingDeltaRef.current.dx += dx
+      pendingDeltaRef.current.dy += dy
+      if (rafHandleRef.current === null) {
+        rafHandleRef.current = requestAnimationFrame(flushMoveDelta)
+      }
     }
 
     function handleMouseUp() {
       if (!isDraggingRef.current) return
       isDraggingRef.current = false
+      // Cancel any pending frame.
+      if (rafHandleRef.current !== null) {
+        cancelAnimationFrame(rafHandleRef.current)
+        rafHandleRef.current = null
+        // Flush any remaining delta synchronously.
+        const { dx, dy } = pendingDeltaRef.current
+        if (dx !== 0 || dy !== 0) {
+          window.hana.moveBy(dx, dy)
+          pendingDeltaRef.current = { dx: 0, dy: 0 }
+        }
+      }
       setPetState((current) => (current === 'touch' ? 'active' : current))
       resetSleepTimer()
     }
@@ -119,40 +162,44 @@ export function Pet() {
   // -------------------------------------------------------------------------
 
   function handleMouseDown(event: React.MouseEvent<HTMLDivElement>) {
-    // Only drag on primary button, and not when eat state textbox is open.
+    // Only drag on primary button; not while textbox is open.
     if (event.button !== 0 || petState === 'eat') return
     event.preventDefault()
 
     isDraggingRef.current = true
-    dragStartScreenRef.current = { x: event.screenX, y: event.screenY }
-
-    // We don't know the native window position from renderer, so we track
-    // delta only. Main process accumulates absolute position from the last
-    // saved value. We send the initial anchor via a special message.
-    windowStartPosRef.current = { x: 0, y: 0 }
-
-    // Tell main process drag started so it can record current window pos
-    // as the anchor. We piggyback on setPosition with a special sentinel
-    // (NaN signals "anchor grab" — main ignores NaN moves).
-    // Actually simpler: we send screen deltas from main. The main process
-    // just calls setPosition(savedX + deltaX, savedY + deltaY). So we track
-    // the drag in renderer as a delta and always send absolute values based
-    // on the last saved pos. The main process simply calls setPosition directly,
-    // which also updates savedPos, so it naturally tracks the chain correctly.
-    // Nothing extra needed here.
+    lastScreenPosRef.current = { x: event.screenX, y: event.screenY }
+    pendingDeltaRef.current = { dx: 0, dy: 0 }
 
     setPetState('touch')
     resetSleepTimer()
   }
 
+  function handleMouseEnter() {
+    if (petState === 'active') {
+      setPetState('hover')
+      resetSleepTimer()
+    } else if (petState === 'sleep') {
+      // Wake up on hover too.
+      setPetState('active')
+      resetSleepTimer()
+    }
+  }
+
+  function handleMouseLeave() {
+    if (petState === 'hover') {
+      setPetState('active')
+      // Don't reset sleep timer here — going back to active should let the
+      // timer count from when the user last moved the cursor away.
+    }
+  }
+
   function handleDoubleClick() {
     if (petState === 'sleep') {
-      // Wake up first — a second double-click will open the textbox.
       setPetState('active')
       resetSleepTimer()
       return
     }
-    if (petState === 'active') {
+    if (petState === 'active' || petState === 'hover') {
       setPetState('eat')
       setJournalText('')
       setSubmitStatus({ kind: 'idle' })
@@ -177,6 +224,7 @@ export function Pet() {
   }
 
   function dismissEatState() {
+    window.hana.setBubbleVisible(false)
     setPetState('active')
     setJournalText('')
     setSubmitStatus({ kind: 'idle' })
@@ -280,6 +328,8 @@ export function Pet() {
       <div
         className={`pet-sprite pet-sprite-${petState}`}
         onMouseDown={handleMouseDown}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         onDoubleClick={handleDoubleClick}
         onClick={handlePetClick}
         role="img"

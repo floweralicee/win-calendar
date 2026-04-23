@@ -15,9 +15,19 @@ contextBridge.exposeInMainWorld('hana', {
     ipcRenderer.invoke('journal:submit', { text, dateISO }),
 
   /**
-   * Move the native window to the given screen coordinates and persist position.
-   * Called continuously during drag.
+   * Move the native window by a delta (dx, dy) in screen pixels.
+   * Main process applies the delta to the current window position via
+   * getPosition() — the renderer never needs to know the absolute position.
+   * Called on every rAF tick during drag.
    */
-  setPosition: (x: number, y: number): void =>
-    ipcRenderer.send('pet:setPosition', { x, y }),
+  moveBy: (dx: number, dy: number): void =>
+    ipcRenderer.send('pet:moveBy', { dx, dy }),
+
+  /**
+   * Tell the main process to expand or shrink the window height to
+   * accommodate the speech bubble. The window grows upward (y decreases)
+   * so the sprite stays anchored at the same screen position.
+   */
+  setBubbleVisible: (visible: boolean): void =>
+    ipcRenderer.send('pet:setBubbleVisible', { visible }),
 })

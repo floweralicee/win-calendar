@@ -9,7 +9,10 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "@hana-icon/*": ["../../hana-icon/*"]
+    }
   },
   "include": ["src/renderer/**/*"]
 }
