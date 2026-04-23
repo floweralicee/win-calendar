@@ -1,0 +1,242 @@
+/* -------------------------------------------------------------------------
+   Global reset — the Electron window is transparent so the body must be too.
+   ------------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: visible;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* -------------------------------------------------------------------------
+   Pet root — stacks speech bubble above the sprite.
+   ------------------------------------------------------------------------- */
+
+.pet-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* No background — transparent window shows through. */
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* -------------------------------------------------------------------------
+   Speech bubble
+   ------------------------------------------------------------------------- */
+
+.speech-bubble {
+  position: relative;
+  background: #ffffff;
+  border: 1.5px solid #e6e4e0;
+  border-radius: 10px;
+  padding: 10px;
+  width: 220px;
+  margin-bottom: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* The little downward tail pointing at the pet */
+.speech-bubble-tail {
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 9px solid #e6e4e0;
+}
+
+.speech-bubble-tail::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -7px;
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 8px solid #ffffff;
+}
+
+/* -------------------------------------------------------------------------
+   Textarea inside the bubble
+   ------------------------------------------------------------------------- */
+
+.bubble-textarea {
+  width: 100%;
+  border: 1px solid #d9d6d2;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #1a1a1a;
+  resize: none;
+  outline: none;
+  background: #faf9ee;
+  transition: border-color 120ms ease;
+}
+
+.bubble-textarea:focus {
+  border-color: #256dad;
+}
+
+.bubble-textarea::placeholder {
+  color: #9a9896;
+}
+
+/* -------------------------------------------------------------------------
+   Bubble action row
+   ------------------------------------------------------------------------- */
+
+.bubble-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bubble-submit-button {
+  flex: 1;
+  background: #256dad;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.bubble-submit-button:hover {
+  background: #1d5c96;
+}
+
+.bubble-dismiss-button {
+  background: none;
+  border: 1px solid #d9d6d2;
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-family: inherit;
+  font-size: 11px;
+  color: #6a6864;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.bubble-dismiss-button:hover {
+  background: #f0eeea;
+  color: #1a1a1a;
+}
+
+/* -------------------------------------------------------------------------
+   Feedback states inside the bubble
+   ------------------------------------------------------------------------- */
+
+.bubble-feedback {
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  padding: 4px 0;
+}
+
+.bubble-feedback-success {
+  color: #256dad;
+  font-weight: 500;
+}
+
+.bubble-feedback-loading {
+  color: #7a7874;
+}
+
+.bubble-feedback-error {
+  color: #c0392b;
+  text-align: left;
+}
+
+.bubble-error-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bubble-retry-button {
+  background: #256dad;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.bubble-cancel-button {
+  background: none;
+  border: 1px solid #d9d6d2;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  color: #6a6864;
+  cursor: pointer;
+}
+
+/* -------------------------------------------------------------------------
+   Pet sprite
+   ------------------------------------------------------------------------- */
+
+.pet-sprite {
+  width: 128px;
+  height: 128px;
+  cursor: grab;
+  /* No background — transparent. */
+  position: relative;
+}
+
+.pet-sprite:active {
+  cursor: grabbing;
+}
+
+.pet-sprite-eat {
+  cursor: default;
+}
+
+.pet-sprite-sleep {
+  cursor: pointer;
+  /* Dim slightly to signal inactivity */
+  opacity: 0.85;
+}
+
+.pet-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  /* Prevent system drag of the img element */
+  -webkit-user-drag: none;
+}

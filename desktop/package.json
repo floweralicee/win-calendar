@@ -1,0 +1,40 @@
+{
+  "name": "hana-desktop",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Hana — Win Calendar desktop pet",
+  "main": "dist-electron/main.js",
+  "type": "module",
+  "scripts": {
+    "start": "npm run build:renderer && npm run build:main && electron .",
+    "dev": "concurrently -k -n main,renderer -c blue,magenta \"npm:dev:main\" \"npm:dev:renderer\"",
+    "dev:renderer": "vite",
+    "dev:main": "tsc -p tsconfig.main.json --watch",
+    "build:renderer": "vite build",
+    "build:main": "tsc -p tsconfig.main.json",
+    "pack": "npm run build:renderer && npm run build:main && electron-builder"
+  },
+  "dependencies": {
+    "electron": "^31.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.2.1",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vite-plugin-electron": "^0.28.8"
+  },
+  "build": {
+    "appId": "com.wincalendar.hana",
+    "productName": "Hana",
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": "dmg"
+    }
+  }
+}
