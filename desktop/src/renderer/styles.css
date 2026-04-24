@@ -241,14 +241,29 @@ body {
 
 /* -------------------------------------------------------------------------
    Pet sprite
+   Window / layout uses 256px; hit-testing uses a centered 128px square so
+   transparent SVG padding does not feel like a huge draggable border.
    ------------------------------------------------------------------------- */
 
+.pet-sprite-hit-wrap {
+  width: 256px;
+  height: 256px;
+  position: relative;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
 .pet-sprite {
+  /* Interactive area: half the display size (tighter hit target). */
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
   width: 128px;
   height: 128px;
   cursor: grab;
-  /* No background — transparent. */
-  position: relative;
+  pointer-events: auto;
+  overflow: visible;
 }
 
 .pet-sprite:active {
@@ -270,8 +285,12 @@ body {
 }
 
 .pet-image {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 256px;
+  height: 256px;
   object-fit: contain;
   pointer-events: none;
   /* Prevent system drag of the img element */
