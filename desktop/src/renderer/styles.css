@@ -207,6 +207,8 @@ body {
 .bubble-feedback-error {
   color: #c0392b;
   text-align: left;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .bubble-error-block {

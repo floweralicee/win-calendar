@@ -177,6 +177,22 @@ electron_1.ipcMain.on('pet:setBubbleVisible', (_event, { visible }) => {
         mainWindow.setPosition(x + xOffset, y + BUBBLE_HEIGHT);
     }
 });
+function friendlyJournalFetchError(error) {
+    if (!(error instanceof Error))
+        return 'Network error';
+    const messageLower = error.message.toLowerCase();
+    const cause = error.cause;
+    const code = cause?.code ?? '';
+    const isUnreachable = code === 'ECONNREFUSED' ||
+        code === 'ENOTFOUND' ||
+        messageLower.includes('fetch failed') ||
+        messageLower.includes('econnrefused');
+    if (isUnreachable) {
+        return ("Can't reach the Win Calendar server (127.0.0.1:8787). " +
+            'Open a terminal in the win-calendar folder and run: npm run dev');
+    }
+    return error.message;
+}
 // Forward journal submission to the local Hono server from Node so we avoid
 // renderer CORS restrictions.
 electron_1.ipcMain.handle('journal:submit', async (_event, payload) => {
@@ -186,15 +202,23 @@ electron_1.ipcMain.handle('journal:submit', async (_event, payload) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
-        const json = (await response.json());
+        let json;
+        try {
+            json = (await response.json());
+        }
+        catch {
+            return {
+                ok: false,
+                error: `Server returned ${response.status} with a non-JSON body.`,
+            };
+        }
         if (!response.ok) {
             return { ok: false, error: json.error ?? `Server error ${response.status}` };
         }
         return { ok: true, winsCount: json.winsCount ?? 0, message: json.message ?? '' };
     }
     catch (error) {
-        const message = error instanceof Error ? error.message : 'Network error';
-        return { ok: false, error: message };
+        return { ok: false, error: friendlyJournalFetchError(error) };
     }
 });
 // ---------------------------------------------------------------------------

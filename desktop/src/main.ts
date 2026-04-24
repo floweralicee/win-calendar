@@ -192,6 +192,29 @@ ipcMain.on('pet:setBubbleVisible', (_event, { visible }: { visible: boolean }) =
   }
 })
 
+function friendlyJournalFetchError(error: unknown): string {
+  if (!(error instanceof Error)) return 'Network error'
+
+  const messageLower = error.message.toLowerCase()
+  const cause = (error as Error & { cause?: { code?: string } }).cause
+  const code = cause?.code ?? ''
+
+  const isUnreachable =
+    code === 'ECONNREFUSED' ||
+    code === 'ENOTFOUND' ||
+    messageLower.includes('fetch failed') ||
+    messageLower.includes('econnrefused')
+
+  if (isUnreachable) {
+    return (
+      "Can't reach the Win Calendar server (127.0.0.1:8787). " +
+      'Open a terminal in the win-calendar folder and run: npm run dev'
+    )
+  }
+
+  return error.message
+}
+
 // Forward journal submission to the local Hono server from Node so we avoid
 // renderer CORS restrictions.
 ipcMain.handle(
@@ -203,19 +226,26 @@ ipcMain.handle(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      const json = (await response.json()) as {
+      let json: {
         ok?: boolean
         winsCount?: number
         message?: string
         error?: string
+      }
+      try {
+        json = (await response.json()) as typeof json
+      } catch {
+        return {
+          ok: false,
+          error: `Server returned ${response.status} with a non-JSON body.`,
+        }
       }
       if (!response.ok) {
         return { ok: false, error: json.error ?? `Server error ${response.status}` }
       }
       return { ok: true, winsCount: json.winsCount ?? 0, message: json.message ?? '' }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Network error'
-      return { ok: false, error: message }
+      return { ok: false, error: friendlyJournalFetchError(error) }
     }
   },
 )
