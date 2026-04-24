@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import activeUrl from '@hana-icon/active.svg?url'
+import active1Url from '@hana-icon/active.svg?url'
+import active2Url from '@hana-icon/new/active2.svg?url'
 import eatUrl from '@hana-icon/eat.svg?url'
 import sleepUrl from '@hana-icon/sleep.svg?url'
 import touchUrl from '@hana-icon/touch.svg?url'
@@ -10,9 +11,9 @@ import touchUrl from '@hana-icon/touch.svg?url'
 // ---------------------------------------------------------------------------
 
 // States map to the OC Desktop Pet skill's four roles:
-//   active  = idle/default  (active.svg)
-//   hover   = hover/curious (eat.svg  — "noticing you" pose)
-//   eat     = textbox open  (eat.svg  — same sprite, different interaction)
+//   active  = idle/default  (active.svg == new/active1.svg; after a saved win → active2)
+//   hover   = hover/curious (eat.svg from new/)
+//   eat     = textbox open  (same eat art)
 //   sleep   = long idle     (sleep.svg)
 //   touch   = dragging      (touch.svg)
 type PetState = 'active' | 'hover' | 'eat' | 'sleep' | 'touch'
@@ -30,13 +31,21 @@ type SubmitStatus =
 const SLEEP_DELAY_MS = 30_000
 const SUCCESS_DISMISS_MS = 2_000
 
-// Hover and eat both show the eat.svg sprite ("noticing you / open mouth").
-const SVG_BY_STATE: Record<PetState, string> = {
-  active: activeUrl,
-  hover: eatUrl,
-  eat: eatUrl,
-  sleep: sleepUrl,
-  touch: touchUrl,
+function spriteUrlForPetState(
+  petState: PetState,
+  activeIdleUsesWinSprite: boolean,
+): string {
+  switch (petState) {
+    case 'active':
+      return activeIdleUsesWinSprite ? active2Url : active1Url
+    case 'hover':
+    case 'eat':
+      return eatUrl
+    case 'sleep':
+      return sleepUrl
+    case 'touch':
+      return touchUrl
+  }
 }
 
 function todayISO(): string {
@@ -53,6 +62,8 @@ function todayISO(): string {
 
 export function Pet() {
   const [petState, setPetState] = useState<PetState>('active')
+  /** After at least one win is saved in this session, idle uses active2.svg. */
+  const [activeIdleUsesWinSprite, setActiveIdleUsesWinSprite] = useState(false)
   const [journalText, setJournalText] = useState('')
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>({ kind: 'idle' })
 
@@ -247,6 +258,9 @@ export function Pet() {
     const result = await window.hana.submitJournal(trimmedText, todayISO())
 
     if (result.ok) {
+      if (result.winsCount > 0) {
+        setActiveIdleUsesWinSprite(true)
+      }
       const winWord = result.winsCount === 1 ? 'win' : 'wins'
       const feedbackMessage =
         result.winsCount > 0
@@ -341,7 +355,7 @@ export function Pet() {
         aria-label={`Hana the desktop pet — ${petState} state`}
       >
         <img
-          src={SVG_BY_STATE[petState]}
+          src={spriteUrlForPetState(petState, activeIdleUsesWinSprite)}
           alt=""
           className="pet-image"
           draggable={false}
