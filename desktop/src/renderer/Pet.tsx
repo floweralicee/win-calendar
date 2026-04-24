@@ -145,6 +145,7 @@ export function Pet() {
           pendingDeltaRef.current = { dx: 0, dy: 0 }
         }
       }
+      // Return to active after touch drag; stay in eat if we were dragging with the bubble open.
       setPetState((current) => (current === 'touch' ? 'active' : current))
       resetSleepTimer()
     }
@@ -162,15 +163,18 @@ export function Pet() {
   // -------------------------------------------------------------------------
 
   function handleMouseDown(event: React.MouseEvent<HTMLDivElement>) {
-    // Only drag on primary button; not while textbox is open.
-    if (event.button !== 0 || petState === 'eat') return
+    if (event.button !== 0) return
     event.preventDefault()
 
     isDraggingRef.current = true
     lastScreenPosRef.current = { x: event.screenX, y: event.screenY }
     pendingDeltaRef.current = { dx: 0, dy: 0 }
 
-    setPetState('touch')
+    // In eat state keep the sprite as eat.svg — the bubble stays open and the
+    // pet is draggable but doesn't visually switch to touch.svg.
+    if (petState !== 'eat') {
+      setPetState('touch')
+    }
     resetSleepTimer()
   }
 
@@ -268,6 +272,14 @@ export function Pet() {
     <div className="pet-root">
       {showBubble && (
         <div className="speech-bubble">
+          <button
+            type="button"
+            className="bubble-close-button"
+            onClick={dismissEatState}
+            aria-label="Close"
+          >
+            ✕
+          </button>
           {submitStatus.kind === 'success' ? (
             <p className="bubble-feedback bubble-feedback-success">{submitStatus.message}</p>
           ) : submitStatus.kind === 'error' ? (
@@ -311,13 +323,6 @@ export function Pet() {
                 onClick={() => void handleSubmit()}
               >
                 Save win ↵
-              </button>
-              <button
-                type="button"
-                className="bubble-dismiss-button"
-                onClick={dismissEatState}
-              >
-                ✕
               </button>
             </div>
           )}

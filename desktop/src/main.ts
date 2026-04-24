@@ -17,7 +17,8 @@ if (!app.requestSingleInstanceLock()) {
 // ---------------------------------------------------------------------------
 
 const PET_SIZE = 128
-const BUBBLE_HEIGHT = 180
+const BUBBLE_WIDTH = 240
+const BUBBLE_HEIGHT = 200
 const HONO_BASE_URL = 'http://127.0.0.1:8787'
 const TOGGLE_SHORTCUT = process.platform === 'darwin' ? 'Command+Shift+H' : 'Control+Shift+H'
 
@@ -76,9 +77,10 @@ function createPetWindow(): void {
   const { x, y } = saved ?? getDefaultPosition()
 
   const windowHeight = isBubbleVisible ? PET_SIZE + BUBBLE_HEIGHT : PET_SIZE
+  const windowWidth = isBubbleVisible ? BUBBLE_WIDTH : PET_SIZE
 
   mainWindow = new BrowserWindow({
-    width: PET_SIZE,
+    width: windowWidth,
     height: windowHeight,
     x,
     y,
@@ -88,8 +90,6 @@ function createPetWindow(): void {
     resizable: false,
     skipTaskbar: true,
     hasShadow: false,
-    // Prevent the window from appearing in Mission Control / Expose on macOS.
-    type: 'panel',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -102,11 +102,22 @@ function createPetWindow(): void {
   // Show the pet on every Space, including fullscreen spaces.
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
 
-  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
-  if (isDev) {
+  const distIndex = path.join(__dirname, '../dist-renderer/index.html')
+  const forceViteDev = process.env.HANA_VITE === '1'
+
+  if (app.isPackaged) {
+    mainWindow.loadFile(distIndex)
+  } else if (forceViteDev) {
     mainWindow.loadURL('http://localhost:5174')
+  } else if (fs.existsSync(distIndex)) {
+    // Lets `npx electron .` work after `npm run build:renderer` without a Vite dev server.
+    mainWindow.loadFile(distIndex)
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist-renderer/index.html'))
+    console.warn(
+      '[hana] No dist-renderer/index.html — run `npm run build:renderer` once, ' +
+        'or start Vite (`npm run dev:renderer`) and set HANA_VITE=1.',
+    )
+    mainWindow.loadURL('http://localhost:5174')
   }
 
   mainWindow.on('closed', () => {
@@ -169,11 +180,15 @@ ipcMain.on('pet:setBubbleVisible', (_event, { visible }: { visible: boolean }) =
   isBubbleVisible = visible
   const [x, y] = mainWindow.getPosition()
   if (visible) {
-    mainWindow.setSize(PET_SIZE, PET_SIZE + BUBBLE_HEIGHT)
-    mainWindow.setPosition(x, y - BUBBLE_HEIGHT)
+    // Expand upward and widen. Shift x left so the sprite stays centered under
+    // the bubble: offset = (BUBBLE_WIDTH - PET_SIZE) / 2
+    const xOffset = Math.round((BUBBLE_WIDTH - PET_SIZE) / 2)
+    mainWindow.setSize(BUBBLE_WIDTH, PET_SIZE + BUBBLE_HEIGHT)
+    mainWindow.setPosition(x - xOffset, y - BUBBLE_HEIGHT)
   } else {
+    const xOffset = Math.round((BUBBLE_WIDTH - PET_SIZE) / 2)
     mainWindow.setSize(PET_SIZE, PET_SIZE)
-    mainWindow.setPosition(x, y + BUBBLE_HEIGHT)
+    mainWindow.setPosition(x + xOffset, y + BUBBLE_HEIGHT)
   }
 })
 

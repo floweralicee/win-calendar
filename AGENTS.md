@@ -117,8 +117,8 @@ Reference image: a minimal monthly calendar with uppercase day labels (MON–SUN
 | `desktop/tsconfig.json` | ~18 | Renderer TS config (`bundler` moduleResolution, `react-jsx`). |
 | `desktop/tsconfig.main.json` | ~16 | Main + preload TS config (`CommonJS`, `outDir: dist-electron`). |
 | `desktop/vite.config.ts` | ~14 | Vite config for renderer only. `base: './'`, outputs to `dist-renderer/`. |
-| `desktop/src/main.ts` | ~110 | Electron main process. Creates frameless transparent always-on-top window, registers `Cmd+Shift+H` global shortcut, handles `journal:submit` IPC (Node fetch to Hono), `pet:setPosition` IPC (moves native window + persists). |
-| `desktop/src/preload.ts` | ~25 | `contextBridge` — exposes `window.hana.submitJournal()` and `window.hana.setPosition()` to the renderer. |
+| `desktop/src/main.ts` | ~120 | Electron main process. Frameless transparent always-on-top window; `Cmd+Shift+H` toggle; tray menu; single-instance lock; loads `dist-renderer/` when present (else `HANA_VITE=1` + `localhost:5174`); `journal:submit`, `pet:moveBy`, `pet:setBubbleVisible` IPC. |
+| `desktop/src/preload.ts` | ~30 | `contextBridge` — `window.hana.submitJournal()`, `moveBy()`, `setBubbleVisible()`. |
 | `desktop/src/renderer/Pet.tsx` | ~200 | React component. Four states (`active`/`eat`/`sleep`/`touch`), sleep timer (30 s), drag via `document` mouse events, speech-bubble textbox, submit flow. |
 | `desktop/src/renderer/index.html` | ~10 | Electron renderer HTML entry. |
 | `desktop/src/renderer/index.tsx` | ~10 | React `createRoot` mount. |
@@ -156,10 +156,10 @@ npm run typecheck
 # Server type-check (no npm script yet; run directly):
 npx tsc -p server/tsconfig.json --noEmit
 
-# Desktop pet — install deps + build + launch Electron (requires npm run dev in another terminal)
+# Desktop pet — install deps, build renderer + main, launch Electron (needs `npm run dev` for API)
 npm run desktop
 
-# Desktop pet — watch mode (renderer on :5174, main tsc --watch)
+# Desktop pet — watch mode (Vite on :5174 + main tsc --watch; run `HANA_VITE=1 npx electron .` from desktop for HMR)
 npm run desktop:dev
 ```
 
