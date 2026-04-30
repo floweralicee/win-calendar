@@ -3,9 +3,9 @@ import type { Win, WinsByDate, LifeArea } from './wins'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CELL_SIZE = 13
-const CELL_GAP = 3
-const CELL_PITCH = CELL_SIZE + CELL_GAP // 16px per cell + gap
+const CELL_SIZE = 11
+const CELL_GAP = 2
+const CELL_PITCH = CELL_SIZE + CELL_GAP
 
 const DAY_ROW_LABELS = ['Mon', '', 'Wed', '', 'Fri', '', ''] as const
 
@@ -14,19 +14,8 @@ const MONTH_ABBREVS = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ] as const
 
-// The 5 named areas in display order (top → bottom within each stacked cell).
+// The 5 named life areas rendered as separate streams, in display order.
 const HEATMAP_AREAS: LifeArea[] = ['finance', 'social', 'growth', 'health', 'career']
-
-// RGBA channels kept in sync with --ring-* CSS tokens. Using inline RGBA
-// (not element opacity) so the today outline ring is never dimmed.
-const AREA_RGB: Record<LifeArea, string> = {
-  finance:      '184, 151,  58',
-  social:       '184, 112, 106',
-  growth:       '110, 158, 116',
-  health:       ' 94, 151, 168',
-  career:       '114, 114, 168',
-  unclassified: '106, 104, 100',
-}
 
 const AREA_LABELS: Record<LifeArea, string> = {
   finance: 'Finance',
@@ -37,13 +26,35 @@ const AREA_LABELS: Record<LifeArea, string> = {
   unclassified: 'Other',
 }
 
+// RGBA channels kept in sync with --ring-* CSS tokens.
+// Inline RGBA (not element opacity) keeps today's outline at full strength.
+const AREA_RGB: Record<LifeArea, string> = {
+  finance:      '184, 151,  58',
+  social:       '184, 112, 106',
+  growth:       '110, 158, 116',
+  health:       ' 94, 151, 168',
+  career:       '114, 114, 168',
+  unclassified: '106, 104, 100',
+}
+
+// Opacity per win-count bucket: 1 / 2 / 3 / 4+
+const INTENSITY_STOPS = [0.22, 0.48, 0.72, 0.92] as const
+
+function intensityOpacity(count: number): number {
+  if (count === 0) return 0
+  return INTENSITY_STOPS[Math.min(count - 1, INTENSITY_STOPS.length - 1)]
+}
+
+// Left offset (px) for the shared month label row:
+// area-name column (68px) + body gap (6px) + day-label column (26px) + grid gap (6px)
+const MONTH_LABEL_LEFT_OFFSET = 68 + 6 + 26 + 6
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type CellData = {
   isoDate: string
-  winCount: number
-  /** Per-area win counts for the 5 named areas (not unclassified). */
-  stripCounts: Record<LifeArea, number>
+  /** Win count per named area for this day. */
+  countsByArea: Record<LifeArea, number>
   wins: Win[]
   isToday: boolean
   isFuture: boolean
@@ -55,7 +66,9 @@ type MonthMarker = {
 }
 
 type TooltipState = {
+  area: LifeArea
   displayDate: string
+  count: number
   wins: Win[]
   clientX: number
   clientY: number
@@ -83,7 +96,7 @@ function formatDisplayDate(isoDate: string): string {
 function buildYearGrid(winsByDate: WinsByDate): {
   columns: CellData[][]
   monthMarkers: MonthMarker[]
-  totalWins: number
+  totalByArea: Record<LifeArea, number>
 } {
   const today = new Date()
   const todayISO = toISODate(today)
@@ -101,7 +114,10 @@ function buildYearGrid(winsByDate: WinsByDate): {
   const columns: CellData[][] = []
   const monthMarkers: MonthMarker[] = []
   let lastMonthSeen = -1
-  let totalWins = 0
+
+  const totalByArea: Record<LifeArea, number> = {
+    finance: 0, social: 0, growth: 0, health: 0, career: 0, unclassified: 0,
+  }
 
   for (let week = 0; week < 52; week++) {
     const column: CellData[] = []
@@ -111,27 +127,24 @@ function buildYearGrid(winsByDate: WinsByDate): {
       d.setDate(startDate.getDate() + week * 7 + day)
       const isoDate = toISODate(d)
       const wins = winsByDate[isoDate] ?? []
-      totalWins += wins.length
 
-      // Count wins per named area for this day's stacked cell strips.
-      const stripCounts: Record<LifeArea, number> = {
+      const countsByArea: Record<LifeArea, number> = {
         finance: 0, social: 0, growth: 0, health: 0, career: 0, unclassified: 0,
       }
       for (const win of wins) {
         const area: LifeArea = win.area ?? 'unclassified'
-        stripCounts[area]++
+        countsByArea[area]++
+        totalByArea[area]++
       }
 
       column.push({
         isoDate,
-        winCount: wins.length,
-        stripCounts,
+        countsByArea,
         wins,
         isToday: isoDate === todayISO,
         isFuture: isoDate > todayISO,
       })
 
-      // Month label at the start of each new month (top row only).
       if (day === 0) {
         const monthIndex = d.getMonth()
         if (monthIndex !== lastMonthSeen) {
@@ -144,7 +157,7 @@ function buildYearGrid(winsByDate: WinsByDate): {
     columns.push(column)
   }
 
-  return { columns, monthMarkers, totalWins }
+  return { columns, monthMarkers, totalByArea }
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -155,25 +168,31 @@ type HeatmapViewProps = {
 
 export function HeatmapView({ winsByDate }: HeatmapViewProps) {
   const [tooltip, setTooltip] = useState<TooltipState>(null)
-  const { columns, monthMarkers, totalWins } = buildYearGrid(winsByDate)
+  const { columns, monthMarkers, totalByArea } = buildYearGrid(winsByDate)
 
-  function handleCellEnter(event: React.MouseEvent, cell: CellData) {
-    if (cell.isFuture || cell.winCount === 0) {
+  const totalWins = HEATMAP_AREAS.reduce((sum, area) => sum + totalByArea[area], 0)
+
+  function handleCellEnter(
+    event: React.MouseEvent,
+    cell: CellData,
+    area: LifeArea,
+  ) {
+    const count = cell.countsByArea[area]
+    if (cell.isFuture || count === 0) {
       setTooltip(null)
       return
     }
+    // Show only the wins for this area on this day.
+    const areaWins = cell.wins.filter((w) => (w.area ?? 'unclassified') === area)
     setTooltip({
+      area,
       displayDate: formatDisplayDate(cell.isoDate),
-      wins: cell.wins,
+      count,
+      wins: areaWins,
       clientX: event.clientX,
       clientY: event.clientY,
     })
   }
-
-  // Which areas actually appear anywhere in the visible year (for the legend).
-  const activeAreas = HEATMAP_AREAS.filter((area) =>
-    columns.some((col) => col.some((cell) => cell.stripCounts[area] > 0)),
-  )
 
   return (
     <div
@@ -186,8 +205,11 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
       </p>
 
       <div className="heatmap-scroll">
-        {/* Month labels */}
-        <div className="heatmap-months">
+        {/* Shared month labels — offset to align with the grids below */}
+        <div
+          className="heatmap-months"
+          style={{ paddingLeft: MONTH_LABEL_LEFT_OFFSET }}
+        >
           {monthMarkers.map((marker) => (
             <span
               key={`${marker.label}-${marker.weekIndex}`}
@@ -199,87 +221,73 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
           ))}
         </div>
 
-        {/* Day-of-week labels + grid */}
-        <div className="heatmap-body">
-          <div className="heatmap-day-labels" aria-hidden="true">
-            {DAY_ROW_LABELS.map((label, i) => (
-              <span key={i} className="heatmap-day-label">
-                {label}
-              </span>
-            ))}
-          </div>
-
-          <div
-            className="heatmap-grid"
-            role="grid"
-            aria-label="Win activity over the past year"
-          >
-            {columns.flatMap((column) =>
-              column.map((cell) => {
-                // Build the strips: one per named area with at least 1 win.
-                const activeStrips = HEATMAP_AREAS.filter(
-                  (area) => cell.stripCounts[area] > 0,
-                )
-
-                // Each strip's height is proportional to that area's share of
-                // the day's wins, summed across the named areas only.
-                const namedTotal = activeStrips.reduce(
-                  (sum, area) => sum + cell.stripCounts[area],
-                  0,
-                )
-
-                return (
-                  <div
-                    key={cell.isoDate}
-                    className={[
-                      'heatmap-cell',
-                      cell.isToday && 'heatmap-cell-today',
-                      cell.isFuture && 'heatmap-cell-future',
-                      cell.winCount > 0 && 'heatmap-cell-filled',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onMouseEnter={(e) => handleCellEnter(e, cell)}
-                    role="gridcell"
-                    aria-label={
-                      cell.winCount > 0
-                        ? `${formatDisplayDate(cell.isoDate)}: ${cell.winCount} win${cell.winCount !== 1 ? 's' : ''}`
-                        : undefined
-                    }
-                  >
-                    {activeStrips.map((area) => {
-                      const share = cell.stripCounts[area] / (namedTotal || 1)
-                      const heightPx = Math.max(1, share * CELL_SIZE)
-                      return (
-                        <div
-                          key={area}
-                          className="heatmap-cell-strip"
-                          style={{
-                            height: heightPx,
-                            backgroundColor: `rgba(${AREA_RGB[area]}, 0.88)`,
-                          }}
-                        />
-                      )
-                    })}
-                  </div>
-                )
-              }),
-            )}
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div className="heatmap-legend" aria-hidden="true">
-          {activeAreas.map((area) => (
-            <span key={area} className="heatmap-legend-area">
+        {/* One heatmap stream per life area */}
+        {HEATMAP_AREAS.map((area) => (
+          <div key={area} className="heatmap-area-section">
+            {/* Area name column */}
+            <div className="heatmap-area-name-col">
               <span
-                className="heatmap-legend-area-dot"
-                style={{ backgroundColor: `rgba(${AREA_RGB[area]}, 0.88)` }}
-              />
-              {AREA_LABELS[area]}
-            </span>
-          ))}
-        </div>
+                className="heatmap-area-name"
+                style={{ color: `rgba(${AREA_RGB[area]}, 1)` }}
+              >
+                {AREA_LABELS[area]}
+              </span>
+              <span className="heatmap-area-total">
+                {totalByArea[area]}
+              </span>
+            </div>
+
+            {/* Grid body */}
+            <div className="heatmap-body">
+              <div className="heatmap-day-labels" aria-hidden="true">
+                {DAY_ROW_LABELS.map((label, i) => (
+                  <span key={i} className="heatmap-day-label">
+                    {label}
+                  </span>
+                ))}
+              </div>
+
+              <div
+                className="heatmap-grid"
+                role="grid"
+                aria-label={`${AREA_LABELS[area]} wins over the past year`}
+              >
+                {columns.flatMap((column) =>
+                  column.map((cell) => {
+                    const count = cell.countsByArea[area]
+                    const opacity = intensityOpacity(count)
+
+                    return (
+                      <div
+                        key={cell.isoDate}
+                        className={[
+                          'heatmap-cell',
+                          cell.isToday && 'heatmap-cell-today',
+                          cell.isFuture && 'heatmap-cell-future',
+                          count > 0 && 'heatmap-cell-filled',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        style={
+                          count > 0
+                            ? { backgroundColor: `rgba(${AREA_RGB[area]}, ${opacity})` }
+                            : undefined
+                        }
+                        onMouseEnter={(e) => handleCellEnter(e, cell, area)}
+                        role="gridcell"
+                        aria-label={
+                          count > 0
+                            ? `${formatDisplayDate(cell.isoDate)}: ${count} ${AREA_LABELS[area].toLowerCase()} win${count !== 1 ? 's' : ''}`
+                            : undefined
+                        }
+                      />
+                    )
+                  }),
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Hover tooltip */}
@@ -289,16 +297,19 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
           style={{ left: tooltip.clientX + 14, top: tooltip.clientY + 14 }}
           role="tooltip"
         >
-          <p className="heatmap-tooltip-date">{tooltip.displayDate}</p>
+          <div className="heatmap-tooltip-header">
+            <span
+              className="heatmap-tooltip-dot"
+              style={{ backgroundColor: `rgba(${AREA_RGB[tooltip.area]}, 0.88)` }}
+            />
+            <span className="heatmap-tooltip-area">
+              {AREA_LABELS[tooltip.area]}
+            </span>
+            <span className="heatmap-tooltip-date">{tooltip.displayDate}</span>
+          </div>
           <ul className="heatmap-tooltip-list">
             {tooltip.wins.slice(0, 6).map((win) => (
               <li key={win.id} className="heatmap-tooltip-win">
-                {win.area && win.area !== 'unclassified' && (
-                  <span
-                    className="heatmap-tooltip-dot"
-                    style={{ backgroundColor: `rgba(${AREA_RGB[win.area]}, 0.88)` }}
-                  />
-                )}
                 {win.title}
               </li>
             ))}

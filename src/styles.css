@@ -683,9 +683,8 @@ body {
 .heatmap-months {
   position: relative;
   height: 16px;
-  margin-bottom: 5px;
-  /* Offset to align with the grid (past the day-label column). */
-  padding-left: 30px;
+  margin-bottom: 6px;
+  /* padding-left set inline from MONTH_LABEL_LEFT_OFFSET constant in component */
 }
 
 .heatmap-month-label {
@@ -709,52 +708,78 @@ body {
 
 .heatmap-day-labels {
   display: grid;
-  grid-template-rows: repeat(7, 13px);
-  gap: 3px;
+  grid-template-rows: repeat(7, 11px);
+  gap: 2px;
   flex-shrink: 0;
-  width: 24px;
+  width: 26px;
 }
 
 .heatmap-day-label {
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--weekday-ink);
-  line-height: 13px;
+  line-height: 11px;
   text-align: right;
 }
 
 .heatmap-grid {
   display: grid;
-  grid-template-rows: repeat(7, 13px);
-  /* Columns expand as weeks are added; grid-auto-flow fills column by column. */
-  grid-auto-columns: 13px;
+  grid-template-rows: repeat(7, 11px);
+  grid-auto-columns: 11px;
   grid-auto-flow: column;
-  gap: 3px;
+  gap: 2px;
+}
+
+/* Individual day cells */
+
+/* One section per life area */
+
+.heatmap-area-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.heatmap-area-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.heatmap-area-name-col {
+  width: 68px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding-top: 1px;
+  gap: 2px;
+}
+
+.heatmap-area-name {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.heatmap-area-total {
+  font-size: 10px;
+  color: var(--win-muted);
+  letter-spacing: 0.06em;
 }
 
 /* Individual day cells */
 
 .heatmap-cell {
-  width: 13px;
-  height: 13px;
+  width: 11px;
+  height: 11px;
   border-radius: 2px;
-  /* Empty day: warm paper rule tone — feels like blank paper, not void. */
   background-color: var(--rule);
-  /* Stacked area strips are flex children; overflow clips to rounded corners. */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.heatmap-cell-strip {
-  width: 100%;
-  flex-shrink: 0;
 }
 
 .heatmap-cell-filled {
-  /* Filled cells have no base background — strips cover the full height. */
-  background-color: transparent;
   cursor: pointer;
   transition: filter 100ms ease;
 }
@@ -763,14 +788,13 @@ body {
   filter: brightness(0.82);
 }
 
-/* Today gets a 1.5px inset ring in the primary ink color. Uses outline so it
-   sits above the strips without affecting element dimensions. */
+/* Today: 1.5px inset outline — uses CSS outline so it never dims with opacity. */
 .heatmap-cell-today {
   outline: 1.5px solid var(--ink);
   outline-offset: -1.5px;
 }
 
-/* Future dates: barely visible placeholder (no wins can exist yet). */
+/* Future dates: barely visible placeholder. */
 .heatmap-cell-future {
   background-color: transparent;
   border: 1px solid var(--rule);
@@ -782,8 +806,9 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 12px;
-  padding-left: 30px;
+  margin-top: 14px;
+  /* Same left offset as the month labels so the legend aligns under the grid. */
+  padding-left: calc(68px + 6px + 26px + 6px);
   flex-wrap: wrap;
 }
 
@@ -820,13 +845,29 @@ body {
   animation: win-detail-rise 140ms ease-out;
 }
 
-.heatmap-tooltip-date {
-  margin: 0 0 7px;
+.heatmap-tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.heatmap-tooltip-area {
   font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--weekday-ink);
+  color: var(--ink);
+}
+
+.heatmap-tooltip-date {
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--win-muted);
+  white-space: nowrap;
 }
 
 .heatmap-tooltip-list {
