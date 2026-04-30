@@ -741,19 +741,30 @@ body {
   border-radius: 2px;
   /* Empty day: warm paper rule tone — feels like blank paper, not void. */
   background-color: var(--rule);
+  /* Stacked area strips are flex children; overflow clips to rounded corners. */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.heatmap-cell-strip {
+  width: 100%;
+  flex-shrink: 0;
 }
 
 .heatmap-cell-filled {
+  /* Filled cells have no base background — strips cover the full height. */
+  background-color: transparent;
   cursor: pointer;
   transition: filter 100ms ease;
 }
 
 .heatmap-cell-filled:hover {
-  filter: brightness(0.88);
+  filter: brightness(0.82);
 }
 
 /* Today gets a 1.5px inset ring in the primary ink color. Uses outline so it
-   sits above the background without affecting element dimensions. */
+   sits above the strips without affecting element dimensions. */
 .heatmap-cell-today {
   outline: 1.5px solid var(--ink);
   outline-offset: -1.5px;
@@ -770,28 +781,10 @@ body {
 .heatmap-legend {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 10px;
+  gap: 12px;
+  margin-top: 12px;
   padding-left: 30px;
   flex-wrap: wrap;
-}
-
-.heatmap-legend-text {
-  font-size: 10px;
-  color: var(--win-muted);
-  letter-spacing: 0.08em;
-}
-
-.heatmap-legend-cell {
-  width: 13px;
-  height: 13px;
-  border-radius: 2px;
-  background-color: var(--rule);
-}
-
-.heatmap-legend-divider {
-  color: var(--rule);
-  margin: 0 4px;
 }
 
 .heatmap-legend-area {

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { Win, WinsByDate, LifeArea } from './wins'
-import { LIFE_AREAS } from './wins'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -15,9 +14,11 @@ const MONTH_ABBREVS = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ] as const
 
-// RGBA channel values for each area color, kept in sync with --ring-* CSS tokens.
-// Using explicit RGBA lets us set background-color alpha without touching element
-// opacity (which would also dim the today outline).
+// The 5 named areas in display order (top → bottom within each stacked cell).
+const HEATMAP_AREAS: LifeArea[] = ['finance', 'social', 'growth', 'health', 'career']
+
+// RGBA channels kept in sync with --ring-* CSS tokens. Using inline RGBA
+// (not element opacity) so the today outline ring is never dimmed.
 const AREA_RGB: Record<LifeArea, string> = {
   finance:      '184, 151,  58',
   social:       '184, 112, 106',
@@ -27,20 +28,22 @@ const AREA_RGB: Record<LifeArea, string> = {
   unclassified: '106, 104, 100',
 }
 
-// Opacity at each intensity level (1 win → 2 wins → 3 wins → 4+ wins).
-const INTENSITY_STOPS = [0.26, 0.52, 0.74, 0.92] as const
-
-// Area tiebreak order when two areas have equal wins on a day.
-const DOMINANT_AREA_TIEBREAK: LifeArea[] = [
-  'career', 'growth', 'finance', 'health', 'social', 'unclassified',
-]
+const AREA_LABELS: Record<LifeArea, string> = {
+  finance: 'Finance',
+  social: 'Social',
+  growth: 'Growth',
+  health: 'Health',
+  career: 'Career',
+  unclassified: 'Other',
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type CellData = {
   isoDate: string
   winCount: number
-  dominantArea: LifeArea | null // null = no wins
+  /** Per-area win counts for the 5 named areas (not unclassified). */
+  stripCounts: Record<LifeArea, number>
   wins: Win[]
   isToday: boolean
   isFuture: boolean
@@ -48,7 +51,6 @@ type CellData = {
 
 type MonthMarker = {
   label: string
-  /** Column index (0–51) at which this month label should appear. */
   weekIndex: number
 }
 
@@ -59,7 +61,7 @@ type TooltipState = {
   clientY: number
 } | null
 
-// ─── Date helpers (no library) ────────────────────────────────────────────────
+// ─── Date helpers ─────────────────────────────────────────────────────────────
 
 function toISODate(date: Date): string {
   return [
@@ -78,32 +80,6 @@ function formatDisplayDate(isoDate: string): string {
 
 // ─── Data helpers ─────────────────────────────────────────────────────────────
 
-function dominantAreaForDay(wins: Win[]): LifeArea | null {
-  if (wins.length === 0) return null
-  const counts = new Map<LifeArea, number>()
-  for (const win of wins) {
-    const area: LifeArea = win.area ?? 'unclassified'
-    counts.set(area, (counts.get(area) ?? 0) + 1)
-  }
-  const maxCount = Math.max(...counts.values())
-  // Tiebreak: career first, then growth, finance, health, social, unclassified.
-  for (const area of DOMINANT_AREA_TIEBREAK) {
-    if ((counts.get(area) ?? 0) === maxCount) return area
-  }
-  return 'unclassified'
-}
-
-function intensityOpacity(winCount: number): number {
-  if (winCount === 0) return 0
-  const idx = Math.min(winCount - 1, INTENSITY_STOPS.length - 1)
-  return INTENSITY_STOPS[idx]
-}
-
-/**
- * Builds the 52-column × 7-row date grid ending at (and including) the
- * current week. Column 0 = oldest week (51 weeks ago), column 51 = this week.
- * Rows 0–6 = Mon–Sun.
- */
 function buildYearGrid(winsByDate: WinsByDate): {
   columns: CellData[][]
   monthMarkers: MonthMarker[]
@@ -112,13 +88,13 @@ function buildYearGrid(winsByDate: WinsByDate): {
   const today = new Date()
   const todayISO = toISODate(today)
 
-  // Find Monday of current week.
+  // Monday of the current week.
   const jsDay = today.getDay()
   const mondayOffset = (jsDay + 6) % 7
   const currentMonday = new Date(today)
   currentMonday.setDate(today.getDate() - mondayOffset)
 
-  // Start 51 full weeks before current Monday.
+  // Start 51 full weeks before the current Monday.
   const startDate = new Date(currentMonday)
   startDate.setDate(currentMonday.getDate() - 51 * 7)
 
@@ -137,16 +113,25 @@ function buildYearGrid(winsByDate: WinsByDate): {
       const wins = winsByDate[isoDate] ?? []
       totalWins += wins.length
 
+      // Count wins per named area for this day's stacked cell strips.
+      const stripCounts: Record<LifeArea, number> = {
+        finance: 0, social: 0, growth: 0, health: 0, career: 0, unclassified: 0,
+      }
+      for (const win of wins) {
+        const area: LifeArea = win.area ?? 'unclassified'
+        stripCounts[area]++
+      }
+
       column.push({
         isoDate,
         winCount: wins.length,
-        dominantArea: dominantAreaForDay(wins),
+        stripCounts,
         wins,
         isToday: isoDate === todayISO,
         isFuture: isoDate > todayISO,
       })
 
-      // Add a month marker at the first day of each new month (top row only).
+      // Month label at the start of each new month (top row only).
       if (day === 0) {
         const monthIndex = d.getMonth()
         if (monthIndex !== lastMonthSeen) {
@@ -185,9 +170,10 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
     })
   }
 
-  const areaHadWins = (area: LifeArea) =>
-    LIFE_AREAS.includes(area) &&
-    columns.some((col) => col.some((cell) => cell.dominantArea === area))
+  // Which areas actually appear anywhere in the visible year (for the legend).
+  const activeAreas = HEATMAP_AREAS.filter((area) =>
+    columns.some((col) => col.some((cell) => cell.stripCounts[area] > 0)),
+  )
 
   return (
     <div
@@ -200,7 +186,7 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
       </p>
 
       <div className="heatmap-scroll">
-        {/* Month labels above the grid */}
+        {/* Month labels */}
         <div className="heatmap-months">
           {monthMarkers.map((marker) => (
             <span
@@ -213,11 +199,11 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
           ))}
         </div>
 
-        {/* Body: day-of-week labels + the grid itself */}
+        {/* Day-of-week labels + grid */}
         <div className="heatmap-body">
           <div className="heatmap-day-labels" aria-hidden="true">
-            {DAY_ROW_LABELS.map((label, rowIndex) => (
-              <span key={rowIndex} className="heatmap-day-label">
+            {DAY_ROW_LABELS.map((label, i) => (
+              <span key={i} className="heatmap-day-label">
                 {label}
               </span>
             ))}
@@ -230,16 +216,17 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
           >
             {columns.flatMap((column) =>
               column.map((cell) => {
-                const area = cell.dominantArea
-                const opacity = intensityOpacity(cell.winCount)
+                // Build the strips: one per named area with at least 1 win.
+                const activeStrips = HEATMAP_AREAS.filter(
+                  (area) => cell.stripCounts[area] > 0,
+                )
 
-                // Background: RGBA so only the fill is dimmed, not the today outline.
-                let backgroundColor: string
-                if (cell.winCount > 0 && area !== null) {
-                  backgroundColor = `rgba(${AREA_RGB[area]}, ${opacity})`
-                } else {
-                  backgroundColor = '' // let CSS class handle empty cells
-                }
+                // Each strip's height is proportional to that area's share of
+                // the day's wins, summed across the named areas only.
+                const namedTotal = activeStrips.reduce(
+                  (sum, area) => sum + cell.stripCounts[area],
+                  0,
+                )
 
                 return (
                   <div
@@ -252,7 +239,6 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
                     ]
                       .filter(Boolean)
                       .join(' ')}
-                    style={backgroundColor ? { backgroundColor } : undefined}
                     onMouseEnter={(e) => handleCellEnter(e, cell)}
                     role="gridcell"
                     aria-label={
@@ -260,7 +246,22 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
                         ? `${formatDisplayDate(cell.isoDate)}: ${cell.winCount} win${cell.winCount !== 1 ? 's' : ''}`
                         : undefined
                     }
-                  />
+                  >
+                    {activeStrips.map((area) => {
+                      const share = cell.stripCounts[area] / (namedTotal || 1)
+                      const heightPx = Math.max(1, share * CELL_SIZE)
+                      return (
+                        <div
+                          key={area}
+                          className="heatmap-cell-strip"
+                          style={{
+                            height: heightPx,
+                            backgroundColor: `rgba(${AREA_RGB[area]}, 0.88)`,
+                          }}
+                        />
+                      )
+                    })}
+                  </div>
                 )
               }),
             )}
@@ -269,35 +270,15 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
 
         {/* Legend */}
         <div className="heatmap-legend" aria-hidden="true">
-          <span className="heatmap-legend-text">Less</span>
-          {([0, 1, 2, 3, 4] as const).map((level) => (
-            <div
-              key={level}
-              className="heatmap-legend-cell"
-              style={
-                level > 0
-                  ? {
-                      backgroundColor: `rgba(${AREA_RGB.career}, ${INTENSITY_STOPS[Math.min(level - 1, INTENSITY_STOPS.length - 1)]})`,
-                    }
-                  : undefined
-              }
-            />
+          {activeAreas.map((area) => (
+            <span key={area} className="heatmap-legend-area">
+              <span
+                className="heatmap-legend-area-dot"
+                style={{ backgroundColor: `rgba(${AREA_RGB[area]}, 0.88)` }}
+              />
+              {AREA_LABELS[area]}
+            </span>
           ))}
-          <span className="heatmap-legend-text">More</span>
-
-          {/* Area color chips for whichever areas have data */}
-          <span className="heatmap-legend-divider" aria-hidden="true">·</span>
-          {(Object.keys(AREA_RGB) as LifeArea[])
-            .filter((area) => area !== 'unclassified' && areaHadWins(area))
-            .map((area) => (
-              <span key={area} className="heatmap-legend-area">
-                <span
-                  className="heatmap-legend-area-dot"
-                  style={{ backgroundColor: `rgba(${AREA_RGB[area]}, 0.88)` }}
-                />
-                {area}
-              </span>
-            ))}
         </div>
       </div>
 
