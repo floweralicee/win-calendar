@@ -1,8 +1,9 @@
 import type { Win, WinsByDate, LifeArea } from './wins'
 import { LIFE_AREAS } from './wins'
 import { BloomView } from './BloomView'
+import { HeatmapView } from './HeatmapView'
 
-type ActiveView = 'month' | 'bloom'
+type ActiveView = 'month' | 'bloom' | 'year'
 
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const
 
@@ -131,6 +132,14 @@ export function Calendar({
             >
               Bloom
             </button>
+            <button
+              type="button"
+              className="calendar-view-toggle-button"
+              aria-pressed={activeView === 'year'}
+              onClick={() => onSetView('year')}
+            >
+              Year
+            </button>
           </div>
           <button
             type="button"
@@ -144,8 +153,9 @@ export function Calendar({
       </header>
 
       {activeView === 'bloom' && <BloomView winsByDate={winsByDate} />}
+      {activeView === 'year' && <HeatmapView winsByDate={winsByDate} />}
 
-      <div className="calendar-grid" role="grid" style={{ display: activeView === 'bloom' ? 'none' : undefined }}>
+      <div className="calendar-grid" role="grid" style={{ display: activeView !== 'month' ? 'none' : undefined }}>
         <div className="calendar-weekday-row" role="row">
           {WEEKDAY_LABELS.map((label) => (
             <div key={label} className="calendar-weekday" role="columnheader">

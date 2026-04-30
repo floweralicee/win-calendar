@@ -131,9 +131,9 @@ Use SVG for the bloom. No canvas, no D3 dependency. The geometry is simple enoug
 
 ---
 
-### 🔲 Stage 7 — Momentum Heatmap
-*Status: NOT STARTED*
-*Prerequisite: Stage 6 complete*
+### ✅ Stage 7 — Momentum Heatmap
+*Status: DONE*
+*Branch: `feature/aliceos`*
 
 **What it adds:**
 A third view — the **year heatmap**. GitHub-style contribution graph but for wins:
@@ -151,11 +151,11 @@ Cells are small squares (not circles). Consistent with the paper aesthetic — w
 - No goal system yet. No urgency/importance matrix. No energy tracking.
 
 **Definition of done:**
-- [ ] Year view renders correctly
-- [ ] Intensity correctly reflects win count per day
-- [ ] Dominant area color applied correctly
-- [ ] Tooltip on hover/tap shows wins
-- [ ] View toggle in header now has 3 options: Month | Bloom | Year
+- [x] Year view renders correctly
+- [x] Intensity correctly reflects win count per day
+- [x] Dominant area color applied correctly
+- [x] Tooltip on hover/tap shows wins
+- [x] View toggle in header now has 3 options: Month | Bloom | Year
 
 ---
 
@@ -368,8 +368,8 @@ Stage 1 ✅
             └─ Stage 4 ✅
                  └─ Stage 5 ✅
                       └─ Stage 6 ✅  ← DONE
-                           └─ Stage 7 🔲  ← START HERE
-                                └─ Stage 8 🔲
+                           └─ Stage 7 ✅
+                                └─ Stage 8 🔲  ← START HERE
                                      └─ Stage 9 🔲
                                           └─ Stage 10 🔲
 ```

@@ -6,7 +6,7 @@ import { JournalComposer } from './JournalComposer'
 import { fetchConfig, fetchWins, deleteWin, type PublicConfig } from './api'
 import type { Win, WinsByDate } from './wins'
 
-type ActiveView = 'month' | 'bloom'
+type ActiveView = 'month' | 'bloom' | 'year'
 
 function addMonths(year: number, monthIndex: number, delta: number): { year: number; monthIndex: number } {
   const total = year * 12 + monthIndex + delta
