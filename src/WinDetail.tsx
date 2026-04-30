@@ -70,6 +70,11 @@ export function WinDetail({ win, onClose }: WinDetailProps) {
       >
         <header className="win-detail-header">
           <p className="win-detail-date">{formatHumanDate(win.date)}</p>
+          {win.area && win.area !== 'unclassified' && (
+            <span className="win-detail-area-tag" data-area={win.area}>
+              {win.area}
+            </span>
+          )}
           <h2 id="win-detail-title" className="win-detail-title">
             {win.title}
           </h2>

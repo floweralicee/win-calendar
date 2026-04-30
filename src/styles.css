@@ -12,6 +12,13 @@
   --win-hover-bg: #f4f2ee;
   --backdrop: rgba(30, 28, 26, 0.45);
 
+  /* Life ring area colors — muted, warm, harmonious with the paper palette */
+  --ring-finance: #b8973a;
+  --ring-social:  #b8706a;
+  --ring-growth:  #6e9e74;
+  --ring-health:  #5e97a8;
+  --ring-career:  #7272a8;
+
   --font-sans:
     'Inter', 'Helvetica Neue', Helvetica, Arial, 'Segoe UI', Roboto, sans-serif;
 }
@@ -181,6 +188,26 @@ body {
   margin-bottom: 6px;
 }
 
+.calendar-area-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 5px;
+}
+
+.calendar-area-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.calendar-area-dot[data-area="finance"] { background: var(--ring-finance); }
+.calendar-area-dot[data-area="social"]  { background: var(--ring-social); }
+.calendar-area-dot[data-area="growth"]  { background: var(--ring-growth); }
+.calendar-area-dot[data-area="health"]  { background: var(--ring-health); }
+.calendar-area-dot[data-area="career"]  { background: var(--ring-career); }
+
 .calendar-cell-empty {
   display: grid;
   place-items: center;
@@ -297,22 +324,40 @@ body {
 }
 
 .win-detail-header {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  column-gap: 16px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
   margin-bottom: 18px;
+  position: relative;
 }
 
 .win-detail-date {
-  grid-column: 1 / -1;
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--weekday-ink);
 }
+
+.win-detail-area-tag {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  color: var(--paper);
+}
+
+.win-detail-area-tag[data-area="finance"] { background: var(--ring-finance); }
+.win-detail-area-tag[data-area="social"]  { background: var(--ring-social); }
+.win-detail-area-tag[data-area="growth"]  { background: var(--ring-growth); }
+.win-detail-area-tag[data-area="health"]  { background: var(--ring-health); }
+.win-detail-area-tag[data-area="career"]  { background: var(--ring-career); }
 
 .win-detail-title {
   margin: 0;
@@ -325,10 +370,9 @@ body {
 
 .win-detail-close {
   all: unset;
-  grid-row: 2;
-  grid-column: 2;
-  align-self: start;
-  justify-self: end;
+  position: absolute;
+  top: 0;
+  right: 0;
   width: 28px;
   height: 28px;
   display: grid;

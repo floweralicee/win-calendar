@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import type { LifeArea } from './claude.ts'
 
 const WIN_SUBFOLDER = 'WinCalendar'
 const TIMELINE_FILENAME = 'timeline-life.md'
@@ -15,6 +16,8 @@ export type PersistedWin = {
   whatHappened: string
   lifeImpact: string
   whyItMatters: string
+  /** Which of the 5 life areas this win belongs to. */
+  area?: LifeArea
   /** ISO timestamp when the win becomes visible to the UI and the email is sent. */
   revealAt: string
   /** Resend email id once scheduled, so we can cancel/update later if we add that. */
@@ -98,8 +101,10 @@ export function renderWinBlock(win: PersistedWin): string {
   ]
   const monthName = monthNames[Number(monthStr) - 1] ?? monthStr
   const heading = `## ${monthName} ${Number(dayStr)}, ${yearStr} — ${win.title}`
+  const areaLine = win.area ? `area: ${win.area}\n` : ''
   return (
     `${heading}\n` +
+    areaLine +
     `**What happened:** ${win.whatHappened.trim()}\n` +
     `**Life impact:** ${win.lifeImpact.trim()}\n` +
     `**Why it matters:** ${win.whyItMatters.trim()}\n\n---\n\n`

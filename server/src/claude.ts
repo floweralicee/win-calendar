@@ -1,12 +1,16 @@
 import { generateText, createGateway } from 'ai'
 import { WINS_EXTRACTION_SYSTEM_PROMPT } from './prompts.ts'
 
+export const LIFE_AREAS = ['finance', 'social', 'growth', 'health', 'career', 'unclassified'] as const
+export type LifeArea = typeof LIFE_AREAS[number]
+
 export type ExtractedWin = {
   date: string
   title: string
   whatHappened: string
   lifeImpact: string
   whyItMatters: string
+  area: LifeArea
 }
 
 export type ExtractWinsInput = {
@@ -27,7 +31,9 @@ function isExtractedWin(value: unknown): value is ExtractedWin {
     typeof candidate.title === 'string' &&
     typeof candidate.whatHappened === 'string' &&
     typeof candidate.lifeImpact === 'string' &&
-    typeof candidate.whyItMatters === 'string'
+    typeof candidate.whyItMatters === 'string' &&
+    typeof candidate.area === 'string' &&
+    (LIFE_AREAS as readonly string[]).includes(candidate.area)
   )
 }
 
@@ -100,6 +106,7 @@ export async function extractWinsFromJournal(
         whatHappened: candidate.whatHappened.trim(),
         lifeImpact: candidate.lifeImpact.trim(),
         whyItMatters: candidate.whyItMatters.trim(),
+        area: candidate.area,
       })
     }
   }

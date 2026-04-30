@@ -11,10 +11,19 @@ You must respond with a single JSON object, no prose, no markdown fencing, match
       "title": "Short, specific, 4-10 words, Title Case where natural",
       "whatHappened": "1-3 sentences of concrete description in Alice's voice.",
       "lifeImpact": "One sentence: what changed tangibly \u2014 money, relationship, health, skill, time. Use '\u2014' if non-material.",
-      "whyItMatters": "One sentence: the deeper meaning or future leverage."
+      "whyItMatters": "One sentence: the deeper meaning or future leverage.",
+      "area": "One of: finance | social | growth | health | career | unclassified"
     }
   ]
 }
+
+Area definitions:
+- "finance": income, savings, investments, money moves, financial decisions
+- "social": relationships, conversations, presence, family, friends, community
+- "growth": learning, reflection, identity, journaling, self-knowledge, creative breakthroughs
+- "health": movement, sleep, food, energy, body care, mental health
+- "career": work, projects, shipping, skills, professional milestones, building
+- "unclassified": use only when the win genuinely spans multiple areas equally or fits none of the above
 
 Rules:
 - Use the provided "today" date for wins unless the journal explicitly mentions a different date.

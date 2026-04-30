@@ -13,6 +13,9 @@ const MONTH_NAME_TO_INDEX: Record<string, number> = {
   dec: 11, december: 11,
 }
 
+export const LIFE_AREAS = ['finance', 'social', 'growth', 'health', 'career', 'unclassified'] as const
+export type LifeArea = typeof LIFE_AREAS[number]
+
 export type Win = {
   /** ISO date `YYYY-MM-DD` */
   date: string
@@ -24,6 +27,8 @@ export type Win = {
   id: string
   /** True when the source entry covered a date range, not a single day */
   spansRange: boolean
+  /** Which of the 5 life areas this win belongs to. Absent on legacy entries. */
+  area?: LifeArea
 }
 
 export type WinsByDate = Record<string, Win[]>
@@ -124,10 +129,24 @@ export function parseTimelineMarkdown(markdown: string): WinsByDate {
     const dates = parseHeadingDates(datePart)
     if (!dates || dates.length === 0) continue
 
-    const trimmedBody = bodyText
+    const rawBody = bodyText
       .replace(/\n?---\s*$/, '')
       .replace(/\s+$/g, '')
       .trim()
+
+    // Parse the optional `area:` line, which appears as the first line of the
+    // body block (before the **What happened:** fields). Strip it from the body
+    // so it never shows up in the detail modal.
+    let area: LifeArea | undefined
+    let trimmedBody = rawBody
+    const areaLineMatch = rawBody.match(/^area:\s*(\S+)/i)
+    if (areaLineMatch) {
+      const candidate = areaLineMatch[1].toLowerCase()
+      if ((LIFE_AREAS as readonly string[]).includes(candidate)) {
+        area = candidate as LifeArea
+      }
+      trimmedBody = rawBody.replace(/^area:\s*\S+\n?/i, '').trim()
+    }
 
     const spansRange = dates.length > 1
 
@@ -138,6 +157,7 @@ export function parseTimelineMarkdown(markdown: string): WinsByDate {
         body: trimmedBody,
         id: `${isoDate}-${slugify(titlePart)}`,
         spansRange,
+        area,
       }
       if (!winsByDate[isoDate]) winsByDate[isoDate] = []
       winsByDate[isoDate].push(win)

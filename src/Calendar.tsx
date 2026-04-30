@@ -1,4 +1,5 @@
-import type { Win, WinsByDate } from './wins'
+import type { Win, WinsByDate, LifeArea } from './wins'
+import { LIFE_AREAS } from './wins'
 
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const
 
@@ -143,9 +144,25 @@ export function Calendar({
 
             const winsForDay = winsByDate[cell.isoDate] ?? []
 
+            // Collect the unique area values present this day, in canonical
+            // order (finance → social → growth → health → career), excluding
+            // unclassified wins and wins with no area tag.
+            const areasThisDay: LifeArea[] = LIFE_AREAS.filter(
+              (area) =>
+                area !== 'unclassified' &&
+                winsForDay.some((win) => win.area === area),
+            )
+
             return (
               <div key={index} className="calendar-cell" role="gridcell">
                 <span className="calendar-day-number">{cell.day}</span>
+                {areasThisDay.length > 0 && (
+                  <div className="calendar-area-dots" aria-hidden="true">
+                    {areasThisDay.map((area) => (
+                      <span key={area} className="calendar-area-dot" data-area={area} />
+                    ))}
+                  </div>
+                )}
                 {winsForDay.length > 0 && (
                   <ul className="calendar-win-list">
                     {winsForDay.map((win) => (
