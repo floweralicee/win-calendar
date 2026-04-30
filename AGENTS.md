@@ -12,7 +12,9 @@ Win Calendar is a personal monthly calendar that shows Alice's "winning list" �
 - **Phase 1 — Infrastructure** *(done)*: calendar grid, design tokens, Monday-first weeks, empty-cell dots.
 - **Phase 2 — Wins rendering** *(done)*: parse a timeline markdown file, place entries on the day(s) they cover, render **only the title** inside each day cell, and open a **modal** with the full body when a title is clicked.
 - **Phase 3 — Autolayer** *(done)*: night-time journal composer (text or dictation) → local Hono server → Claude extracts wins → append to `<obsidian>/WinCalendar/timeline-life.md` → schedule a morning email via Resend `scheduled_at` → hide wins from the UI until `revealAt` passes. First-run onboarding collects the Obsidian vault path, email, timezone, and reveal hour into `~/.win-calendar/config.json` (mode 0600).
-- **Phase 4 — Desktop Pet** *(in progress, branch `feature/desktop`)*: always-on-top Electron window showing the Hana pet character. Four interaction states (active/eat/sleep/touch). Double-clicking opens a speech-bubble textbox; typed wins are sent through the existing Claude extraction pipeline and saved to the vault. Global shortcut `Cmd+Shift+H` toggles visibility.
+- **Phase 4 — Desktop Pet** *(done, branch `feature/desktop`)*: always-on-top Electron window showing the Hana pet character. Four interaction states (active/eat/sleep/touch). Double-clicking opens a speech-bubble textbox; typed wins are sent through the existing Claude extraction pipeline and saved to the vault. Global shortcut `Cmd+Shift+H` toggles visibility.
+- **Phase 5 — Life Ring Tags** *(done, branch `feature/aliceos`)*: AI extraction classifies each win into one of 5 life areas. `timeline-life.md` gains an `area:` field. Both parsers updated in lockstep. Calendar day cells show colored presence dots per area. Detail modal shows area pill.
+- **Phase 6 — Growth Ring Bloom** *(done, branch `feature/aliceos`)*: a second view toggled from the calendar header. Hand-written SVG radial bloom where each concentric ring = one week, each arc = a life area, arc thickness = win count. First-load scale animation. Click an arc to see the wins for that area/week in a popover.
 
 ## Design Base
 
@@ -30,7 +32,7 @@ Reference image: a minimal monthly calendar with uppercase day labels (MON–SUN
 - **Frontend**: React 18 + TypeScript, bundled with Vite. Client-side SPA, single route (the current month).
 - **Desktop pet**: Electron app in `desktop/`. Self-contained package with its own `package.json`. Main process (`desktop/src/main.ts`) creates a frameless, transparent, always-on-top `BrowserWindow`. Renderer (`desktop/src/renderer/`) is a React app built by a separate Vite config. The pet submits wins through the existing Hono server via IPC → Node `fetch` (no CORS). Position is persisted in `app.getPath('userData')/hana-position.json`.
 - **Backend**: local Hono server on `127.0.0.1:8787`, run via `tsx watch`. Both start together with `npm run dev` (via `concurrently`). Vite dev server proxies `/api/*` to the Hono server.
-- **State**: local component state only, no global store. `App` owns the `config` gate, the fetched `winsByDate`, the visible month, the selected win (for detail modal), and whether the journal composer is open.
+- **State**: local component state only, no global store. `App` owns the `config` gate, the fetched `winsByDate`, the visible month, the selected win (for detail modal), whether the journal composer is open, and the `activeView` (`'month' | 'bloom'`). `activeView` is passed to `Calendar`, which renders either the month grid or `<BloomView>`.
 - **Styling**: hand-written CSS with design tokens in `:root` custom properties (no Tailwind, no CSS-in-JS).
 - **Week start**: Monday (MON–SUN order).
 - **Date math**: native `Date` — first weekday is `(jsWeekday + 6) % 7`. Server-side timezone math is done with `Intl.DateTimeFormat` offsets, no date library.
@@ -76,15 +78,16 @@ Reference image: a minimal monthly calendar with uppercase day labels (MON–SUN
 |------|-------|---------|
 | `index.html` | ~11 | Vite entry HTML. Single `#root` mount point, no meta chrome beyond viewport + title. |
 | `src/main.tsx` | ~11 | React bootstrap. Mounts `<App />` in `StrictMode` and imports `styles.css`. |
-| `src/App.tsx` | ~130 | Top-level component. Calls `fetchConfig()` / `fetchWins()` on mount; gates on `onboarded`; owns visible month state, selected win, and whether the journal composer is open. Exposes `reload()` so the composer can refresh the calendar after submit. |
-| `src/Calendar.tsx` | ~160 | Month grid + win titles inside day cells. Owns `buildMonthGrid()`, weekday/month labels, the ‹/› nav chevrons, the clickable month label, and the **Journal** button on the right of the header. Does not render win bodies — those live in the modal. |
+| `src/App.tsx` | ~155 | Top-level component. Calls `fetchConfig()` / `fetchWins()` on mount; gates on `onboarded`; owns visible month state, selected win, whether the journal composer is open, and `activeView` (`'month' | 'bloom'`). Exposes `reload()` so the composer can refresh the calendar after submit. |
+| `src/Calendar.tsx` | ~210 | Month grid + win titles inside day cells + view toggle (Month / Bloom). Owns `buildMonthGrid()`, weekday/month labels, the ‹/› nav chevrons, the clickable month label, the view toggle buttons, and the **Journal** button. When `activeView === 'bloom'` renders `<BloomView>` instead of the grid. |
 | `src/WinDetail.tsx` | ~85 | The detail modal opened when a win title is clicked. Renders lightweight inline markdown (paragraphs + `**bold**`). Closes on backdrop click, the × button, or ESC (ESC is handled in `App`). |
 | `src/Onboarding.tsx` | ~115 | First-run form. Per-user fields only: Obsidian path, email, timezone (auto-detected), reveal hour. API keys are operator-managed and never asked here. Posts to `/api/config` and calls `onComplete` on success. |
 | `src/JournalComposer.tsx` | ~180 | Nightly journal modal. Textarea + optional dictation via Web Speech API. On submit, shows the returned "Great job…" message and nothing else — the wins themselves never come back to the client. |
 | `src/api.ts` | ~60 | Typed fetch wrappers for `/api/config`, `/api/wins`, `/api/journal`. All error paths raise `Error` with the server's message. |
-| `src/wins.ts` | ~130 | Deterministic timeline-markdown parser (browser copy). Exports `Win`, `WinsByDate`, `parseTimelineMarkdown()`. |
+| `src/wins.ts` | ~155 | Deterministic timeline-markdown parser (browser copy). Exports `Win`, `WinsByDate`, `LifeArea`, `LIFE_AREAS`, `parseTimelineMarkdown()`. Parses optional `area:` field. |
+| `src/BloomView.tsx` | ~200 | Growth ring bloom SVG view. Groups `winsByDate` into weekly buckets, renders concentric rings (one per week, innermost = oldest) with 5 arc segments per ring (one per life area). Arc thickness ∝ win count. First-load scale animation (once per session). Click arc → popover listing that area/week's wins. |
 | `src/vite-env.d.ts` | ~6 | Vite client types + the `*.md?raw` module declaration (still used by the example fixture). |
-| `src/styles.css` | ~560 | Design tokens + calendar, win-title, detail modal, onboarding, journal composer, and app-status styles. Single stylesheet. |
+| `src/styles.css` | ~720 | Design tokens (including 5 `--ring-*` area color tokens) + calendar, area dots, win-title, detail modal, onboarding, journal composer, app-status, view toggle, bloom container, bloom legend, and bloom popover styles. Single stylesheet. |
 | `example/TIMELINE-finance.md` | — | Example timeline. Used as the fixture/seed for design decisions. Not the live source at runtime — the server reads `<obsidian>/WinCalendar/timeline-life.md` instead. |
 | `vite.config.ts` | ~14 | Vite config. `@vitejs/plugin-react`, dev server on port 5173, `/api` proxy to `127.0.0.1:8787`. |
 | `tsconfig.json` | ~22 | App TS config. `strict`, `noUnusedLocals`, `noUnusedParameters`, `jsx: react-jsx`. |
@@ -232,7 +235,7 @@ Node 18+ is required (Vite 5 dropped Node 16). The server uses `.ts` imports wit
 - **Do not route LLM calls around the AI Gateway.** All Claude traffic goes through `ai`'s default gateway resolution (driven by `AI_GATEWAY_API_KEY`). Do not reintroduce `@anthropic-ai/sdk` or set a custom `baseURL` to bypass the gateway.
 - **Do not bind the Hono server to `0.0.0.0`.** It stays on `127.0.0.1`. If you need to proxy from the browser through Vite, that's already wired in `vite.config.ts`.
 - **Do not let `POST /api/journal` return the extracted wins.** The composer only surfaces the "Great job…" message. Returning wins would defeat the evening-reveal.
-- Do not rename the project, the `win-calendar` directory, or the `--frame`/`--paper`/`--rule`/`--weekday-bg`/`--weekday-ink`/`--day-ink`/`--empty-dot`/`--win-ink`/`--win-muted`/`--win-hover-bg`/`--backdrop` token names.
+- Do not rename the project, the `win-calendar` directory, or the `--frame`/`--paper`/`--rule`/`--weekday-bg`/`--weekday-ink`/`--day-ink`/`--empty-dot`/`--win-ink`/`--win-muted`/`--win-hover-bg`/`--backdrop`/`--ring-finance`/`--ring-social`/`--ring-growth`/`--ring-health`/`--ring-career` token names.
 
 ## Git Workflow
 

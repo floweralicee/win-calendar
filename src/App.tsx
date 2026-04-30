@@ -6,6 +6,8 @@ import { JournalComposer } from './JournalComposer'
 import { fetchConfig, fetchWins, deleteWin, type PublicConfig } from './api'
 import type { Win, WinsByDate } from './wins'
 
+type ActiveView = 'month' | 'bloom'
+
 function addMonths(year: number, monthIndex: number, delta: number): { year: number; monthIndex: number } {
   const total = year * 12 + monthIndex + delta
   return { year: Math.floor(total / 12), monthIndex: ((total % 12) + 12) % 12 }
@@ -26,6 +28,7 @@ export function App() {
 
   const [selectedWin, setSelectedWin] = useState<Win | null>(null)
   const [isJournalOpen, setIsJournalOpen] = useState(false)
+  const [activeView, setActiveView] = useState<ActiveView>('month')
 
   const reload = useCallback(async () => {
     setLoadState('loading')
@@ -139,6 +142,8 @@ export function App() {
         onNextMonth={goToNextMonth}
         onJumpToToday={goToToday}
         onOpenJournal={() => setIsJournalOpen(true)}
+        activeView={activeView}
+        onSetView={setActiveView}
       />
       {selectedWin && <WinDetail win={selectedWin} onClose={() => setSelectedWin(null)} />}
       {isJournalOpen && (

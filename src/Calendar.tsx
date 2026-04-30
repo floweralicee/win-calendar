@@ -1,5 +1,8 @@
 import type { Win, WinsByDate, LifeArea } from './wins'
 import { LIFE_AREAS } from './wins'
+import { BloomView } from './BloomView'
+
+type ActiveView = 'month' | 'bloom'
 
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const
 
@@ -28,6 +31,8 @@ type CalendarProps = {
   onNextMonth: () => void
   onJumpToToday: () => void
   onOpenJournal: () => void
+  activeView: ActiveView
+  onSetView: (view: ActiveView) => void
 }
 
 type CalendarCell =
@@ -67,6 +72,8 @@ export function Calendar({
   onNextMonth,
   onJumpToToday,
   onOpenJournal,
+  activeView,
+  onSetView,
 }: CalendarProps) {
   const cells = buildMonthGrid(year, month)
 
@@ -107,6 +114,24 @@ export function Calendar({
             <span className="calendar-year-number">{year}</span>
             <span className="calendar-year-bullet" aria-hidden="true">•</span>
           </div>
+          <div className="calendar-view-toggle" role="group" aria-label="View">
+            <button
+              type="button"
+              className="calendar-view-toggle-button"
+              aria-pressed={activeView === 'month'}
+              onClick={() => onSetView('month')}
+            >
+              Month
+            </button>
+            <button
+              type="button"
+              className="calendar-view-toggle-button"
+              aria-pressed={activeView === 'bloom'}
+              onClick={() => onSetView('bloom')}
+            >
+              Bloom
+            </button>
+          </div>
           <button
             type="button"
             className="calendar-journal-button"
@@ -118,7 +143,9 @@ export function Calendar({
         </div>
       </header>
 
-      <div className="calendar-grid" role="grid">
+      {activeView === 'bloom' && <BloomView winsByDate={winsByDate} />}
+
+      <div className="calendar-grid" role="grid" style={{ display: activeView === 'bloom' ? 'none' : undefined }}>
         <div className="calendar-weekday-row" role="row">
           {WEEKDAY_LABELS.map((label) => (
             <div key={label} className="calendar-weekday" role="columnheader">
