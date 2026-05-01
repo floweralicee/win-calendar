@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Hono } from 'hono'
 import { readConfig } from '../config-store.ts'
-import { getRevealAtMap, readTimeline, deleteWin, updateWinAreaInFile } from '../obsidian.ts'
+import { getRevealAtMap, readTimeline, deleteWin, updateWinAreasInFile } from '../obsidian.ts'
 import { parseTimelineMarkdown } from '../timeline-parser.ts'
 import { LIFE_AREAS, type LifeArea } from '../claude.ts'
 
@@ -75,12 +75,16 @@ wins.patch('/api/wins/:winId', async (c) => {
     return c.json({ error: 'Body must be JSON.' }, 400)
   }
 
-  const newArea = body.area
+  const newAreas = body.areas
   if (
-    typeof newArea !== 'string' ||
-    !(LIFE_AREAS as readonly string[]).includes(newArea)
+    !Array.isArray(newAreas) ||
+    newAreas.length === 0 ||
+    !newAreas.every(
+      (a): a is LifeArea =>
+        typeof a === 'string' && (LIFE_AREAS as readonly string[]).includes(a),
+    )
   ) {
-    return c.json({ error: `area must be one of: ${LIFE_AREAS.join(', ')}.` }, 400)
+    return c.json({ error: `areas must be a non-empty array of: ${LIFE_AREAS.join(', ')}.` }, 400)
   }
 
   const demoTimelineEnv = process.env.WIN_CALENDAR_DEMO_TIMELINE?.trim()
@@ -100,7 +104,7 @@ wins.patch('/api/wins/:winId', async (c) => {
     )
   }
 
-  const updated = await updateWinAreaInFile(targetFilePath, winId, newArea as LifeArea)
+  const updated = await updateWinAreasInFile(targetFilePath, winId, newAreas)
   if (!updated) return c.json({ error: 'Win not found in timeline.' }, 404)
 
   return c.json({ ok: true })

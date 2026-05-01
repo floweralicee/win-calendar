@@ -158,9 +158,12 @@ function buildYearGrid(winsByDate: WinsByDate): {
         finance: 0, social: 0, growth: 0, health: 0, career: 0, unclassified: 0,
       }
       for (const win of wins) {
-        const area: LifeArea = win.area ?? 'unclassified'
-        countsByArea[area]++
-        totalByArea[area]++
+        // A win with multiple areas counts toward each area it belongs to.
+        const areas = win.areas && win.areas.length > 0 ? win.areas : (['unclassified'] as LifeArea[])
+        for (const area of areas) {
+          countsByArea[area]++
+          totalByArea[area]++
+        }
       }
 
       column.push({
@@ -209,7 +212,9 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
       return
     }
     // Show only the wins for this area on this day.
-    const areaWins = cell.wins.filter((w) => (w.area ?? 'unclassified') === area)
+    const areaWins = cell.wins.filter((w) =>
+      w.areas && w.areas.length > 0 ? w.areas.includes(area) : area === 'unclassified',
+    )
     setTooltip({
       area,
       displayDate: formatDisplayDate(cell.isoDate),

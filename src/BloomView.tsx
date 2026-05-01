@@ -73,9 +73,12 @@ function buildWeeklyData(winsByDate: WinsByDate): WeekData[] {
     }
     const week = weekMap.get(monday)!
     for (const win of winsForDate) {
-      const area: LifeArea = win.area ?? 'unclassified'
-      week.counts[area]++
-      week.winsPerArea[area].push(win)
+      // A win with multiple areas counts toward each area it belongs to.
+      const areas = win.areas && win.areas.length > 0 ? win.areas : (['unclassified'] as LifeArea[])
+      for (const area of areas) {
+        week.counts[area]++
+        week.winsPerArea[area].push(win)
+      }
     }
   }
 

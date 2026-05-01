@@ -26,8 +26,8 @@ export type Win = {
   body: string
   id: string
   spansRange: boolean
-  /** Which of the 5 life areas this win belongs to. Absent on legacy entries. */
-  area?: LifeArea
+  /** Which life areas this win belongs to. Multiple allowed. Absent on legacy entries. */
+  areas?: LifeArea[]
 }
 
 export type WinsByDate = Record<string, Win[]>
@@ -102,18 +102,18 @@ export function parseTimelineMarkdown(markdown: string): WinsByDate {
       .replace(/\s+$/g, '')
       .trim()
 
-    // Parse the optional `area:` line, which appears as the first line of the
-    // body block (before the **What happened:** fields). Strip it from the body
-    // so it never shows up in the detail modal.
-    let area: LifeArea | undefined
+    // Parse the optional `area:` line. Supports comma-separated multiple areas
+    // (e.g. "area: career, growth"). Strip from body before modal rendering.
+    let areas: LifeArea[] | undefined
     let trimmedBody = rawBody
-    const areaLineMatch = rawBody.match(/^area:\s*(\S+)/i)
+    const areaLineMatch = rawBody.match(/^area:\s*(.+)/i)
     if (areaLineMatch) {
-      const candidate = areaLineMatch[1].toLowerCase()
-      if ((LIFE_AREAS as readonly string[]).includes(candidate)) {
-        area = candidate as LifeArea
-      }
-      trimmedBody = rawBody.replace(/^area:\s*\S+\n?/i, '').trim()
+      const parsed = areaLineMatch[1]
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter((s): s is LifeArea => (LIFE_AREAS as readonly string[]).includes(s))
+      if (parsed.length > 0) areas = parsed
+      trimmedBody = rawBody.replace(/^area:\s*.+\n?/i, '').trim()
     }
 
     const spansRange = dates.length > 1
@@ -124,7 +124,7 @@ export function parseTimelineMarkdown(markdown: string): WinsByDate {
         body: trimmedBody,
         id: `${isoDate}-${slugify(titlePart)}`,
         spansRange,
-        area,
+        areas,
       }
       if (!winsByDate[isoDate]) winsByDate[isoDate] = []
       winsByDate[isoDate].push(win)

@@ -17,7 +17,7 @@ const SELECTABLE_AREAS = LIFE_AREAS.filter((a) => a !== 'unclassified')
 type WinDetailProps = {
   win: Win
   onClose: () => void
-  onUpdateArea: (win: Win, area: LifeArea) => Promise<void>
+  onUpdateAreas: (win: Win, areas: LifeArea[]) => Promise<void>
 }
 
 const MONTH_LABELS = [
@@ -62,7 +62,7 @@ function renderInlineMarkdown(source: string) {
   })
 }
 
-export function WinDetail({ win, onClose, onUpdateArea }: WinDetailProps) {
+export function WinDetail({ win, onClose, onUpdateAreas }: WinDetailProps) {
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const [areaUpdateError, setAreaUpdateError] = useState<string | null>(null)
   const [savingArea, setSavingArea] = useState(false)
@@ -71,12 +71,20 @@ export function WinDetail({ win, onClose, onUpdateArea }: WinDetailProps) {
     closeButtonRef.current?.focus()
   }, [])
 
-  async function handleAreaSelect(area: LifeArea) {
-    if (area === win.area || savingArea) return
+  const currentAreas = win.areas ?? []
+
+  async function handleAreaToggle(area: LifeArea) {
+    if (savingArea) return
+    const isActive = currentAreas.includes(area)
+    // Don't allow deselecting the last active area.
+    if (isActive && currentAreas.length === 1) return
+    const newAreas = isActive
+      ? currentAreas.filter((a) => a !== area)
+      : [...currentAreas, area]
     setSavingArea(true)
     setAreaUpdateError(null)
     try {
-      await onUpdateArea(win, area)
+      await onUpdateAreas(win, newAreas)
     } catch (err) {
       setAreaUpdateError(err instanceof Error ? err.message : 'Failed to save.')
     } finally {
@@ -101,20 +109,30 @@ export function WinDetail({ win, onClose, onUpdateArea }: WinDetailProps) {
           <p className="win-detail-date">{formatHumanDate(win.date)}</p>
           {/* Area tag selector — shows current area and lets user re-tag */}
           <div className="win-detail-area-row">
-            {SELECTABLE_AREAS.map((area) => (
-              <button
-                key={area}
-                type="button"
-                className="win-detail-area-btn"
-                aria-pressed={win.area === area}
-                data-area={area}
-                disabled={savingArea}
-                onClick={() => handleAreaSelect(area)}
-                title={`Tag as ${AREA_LABELS[area]}`}
-              >
-                {AREA_LABELS[area]}
-              </button>
-            ))}
+            {SELECTABLE_AREAS.map((area) => {
+              const isActive = currentAreas.includes(area)
+              const isLastActive = isActive && currentAreas.length === 1
+              return (
+                <button
+                  key={area}
+                  type="button"
+                  className="win-detail-area-btn"
+                  aria-pressed={isActive}
+                  data-area={area}
+                  disabled={savingArea || isLastActive}
+                  onClick={() => handleAreaToggle(area)}
+                  title={
+                    isLastActive
+                      ? `${AREA_LABELS[area]} (at least one area required)`
+                      : isActive
+                      ? `Remove ${AREA_LABELS[area]}`
+                      : `Add ${AREA_LABELS[area]}`
+                  }
+                >
+                  {AREA_LABELS[area]}
+                </button>
+              )
+            })}
           </div>
           {areaUpdateError && (
             <p className="win-detail-area-error">{areaUpdateError}</p>

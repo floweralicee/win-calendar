@@ -22,6 +22,8 @@ const BUBBLE_WIDTH = 300
 const BUBBLE_HEIGHT = 220
 const HONO_BASE_URL = 'http://127.0.0.1:8787'
 const TOGGLE_SHORTCUT = process.platform === 'darwin' ? 'Command+Shift+H' : 'Control+Shift+H'
+const TOGGLE_SHORTCUT_HINT =
+  process.platform === 'darwin' ? '⌘⇧H' : 'Ctrl+Shift+H'
 
 // ---------------------------------------------------------------------------
 // Persist pet position — written once on quit, not per-frame.
@@ -126,6 +128,18 @@ function createPetWindow(): void {
   })
 }
 
+function togglePetWindowVisibility(): void {
+  if (!mainWindow) {
+    createPetWindow()
+    return
+  }
+  if (mainWindow.isVisible()) {
+    mainWindow.hide()
+  } else {
+    mainWindow.show()
+  }
+}
+
 function createTray(): void {
   // Use a PNG for the tray icon — SVG is not supported on all platforms.
   // Fall back to an empty image if the asset is missing so the app still runs.
@@ -142,14 +156,13 @@ function createTray(): void {
   }
 
   tray = new Tray(icon)
-  tray.setToolTip('Hana')
+  tray.setToolTip(`Hana — ${TOGGLE_SHORTCUT_HINT} to show or hide`)
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {
-        label: 'Show Hana',
+        label: `Show / hide Hana (${TOGGLE_SHORTCUT_HINT})`,
         click: () => {
-          if (!mainWindow) createPetWindow()
-          else mainWindow.show()
+          togglePetWindowVisibility()
         },
       },
       { type: 'separator' },
@@ -267,17 +280,15 @@ app.whenReady().then(() => {
     }
   })
 
-  globalShortcut.register(TOGGLE_SHORTCUT, () => {
-    if (!mainWindow) {
-      createPetWindow()
-      return
-    }
-    if (mainWindow.isVisible()) {
-      mainWindow.hide()
-    } else {
-      mainWindow.show()
-    }
+  const shortcutRegistered = globalShortcut.register(TOGGLE_SHORTCUT, () => {
+    togglePetWindowVisibility()
   })
+  if (!shortcutRegistered) {
+    console.warn(
+      `[hana] Could not register ${TOGGLE_SHORTCUT} — another app may own it. ` +
+        'Use the menu bar tray: Show / hide Hana.',
+    )
+  }
 
   // macOS: re-create window when the dock icon is clicked with no open windows.
   app.on('activate', () => {

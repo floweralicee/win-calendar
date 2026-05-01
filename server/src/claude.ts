@@ -10,7 +10,7 @@ export type ExtractedWin = {
   whatHappened: string
   lifeImpact: string
   whyItMatters: string
-  area: LifeArea
+  areas: LifeArea[]
 }
 
 export type ExtractWinsInput = {
@@ -26,15 +26,20 @@ const MODEL_SLUG = 'anthropic/claude-haiku-4.5'
 function isExtractedWin(value: unknown): value is ExtractedWin {
   if (!value || typeof value !== 'object') return false
   const candidate = value as Record<string, unknown>
-  return (
-    typeof candidate.date === 'string' &&
-    typeof candidate.title === 'string' &&
-    typeof candidate.whatHappened === 'string' &&
-    typeof candidate.lifeImpact === 'string' &&
-    typeof candidate.whyItMatters === 'string' &&
-    typeof candidate.area === 'string' &&
-    (LIFE_AREAS as readonly string[]).includes(candidate.area)
-  )
+  if (
+    typeof candidate.date !== 'string' ||
+    typeof candidate.title !== 'string' ||
+    typeof candidate.whatHappened !== 'string' ||
+    typeof candidate.lifeImpact !== 'string' ||
+    typeof candidate.whyItMatters !== 'string'
+  ) return false
+  // Accept either the new `areas` array or the old `area` string for resilience.
+  if (Array.isArray(candidate.areas)) {
+    return candidate.areas.every(
+      (a) => typeof a === 'string' && (LIFE_AREAS as readonly string[]).includes(a),
+    )
+  }
+  return typeof candidate.area === 'string' && (LIFE_AREAS as readonly string[]).includes(candidate.area)
 }
 
 function extractJsonObject(text: string): string | null {
@@ -100,13 +105,19 @@ export async function extractWinsFromJournal(
   const wins: ExtractedWin[] = []
   for (const candidate of winsUnknown) {
     if (isExtractedWin(candidate)) {
+      // Normalise to `areas` array whether the model returned `areas` or the
+      // old-style `area` string (graceful degradation for prompt staleness).
+      const raw = candidate as Record<string, unknown>
+      const areas: LifeArea[] = Array.isArray(raw.areas)
+        ? (raw.areas as LifeArea[])
+        : [raw.area as LifeArea]
       wins.push({
         date: candidate.date,
         title: candidate.title.trim(),
         whatHappened: candidate.whatHappened.trim(),
         lifeImpact: candidate.lifeImpact.trim(),
         whyItMatters: candidate.whyItMatters.trim(),
-        area: candidate.area,
+        areas,
       })
     }
   }

@@ -197,7 +197,7 @@ export function Calendar({
             const areasThisDay: LifeArea[] = LIFE_AREAS.filter(
               (area) =>
                 area !== 'unclassified' &&
-                winsForDay.some((win) => win.area === area),
+                winsForDay.some((win) => win.areas?.includes(area)),
             )
 
             return (

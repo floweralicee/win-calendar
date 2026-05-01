@@ -14,7 +14,11 @@ import wins from './routes/wins.ts'
 // read process.env inside handlers, so loading here (after imports, before serve)
 // is sufficient.
 const here = path.dirname(fileURLToPath(import.meta.url))
-loadDotenv({ path: path.resolve(here, '../.env') })
+const repoRootEnvPath = path.resolve(here, '../../.env')
+const serverEnvPath = path.resolve(here, '../.env')
+// Root `.env` is optional (e.g. `WIN_CALENDAR_DEMO_TIMELINE`); `server/.env` wins on conflicts.
+loadDotenv({ path: repoRootEnvPath })
+loadDotenv({ path: serverEnvPath, override: true })
 
 const app = new Hono()
 
@@ -35,6 +39,11 @@ serve({
 })
 
 console.log(`[win-calendar/server] listening on http://127.0.0.1:${port}`)
+if (process.env.WIN_CALENDAR_DEMO_TIMELINE?.trim()) {
+  console.log(
+    `[win-calendar/server] Demo timeline: ${process.env.WIN_CALENDAR_DEMO_TIMELINE.trim()} (resolved from repo root)`,
+  )
+}
 
 if (!process.env.AI_GATEWAY_API_KEY) {
   console.warn('[win-calendar/server] AI_GATEWAY_API_KEY is not set — /api/journal will fail.')

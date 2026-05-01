@@ -23,6 +23,7 @@ const BUBBLE_WIDTH = 300;
 const BUBBLE_HEIGHT = 220;
 const HONO_BASE_URL = 'http://127.0.0.1:8787';
 const TOGGLE_SHORTCUT = process.platform === 'darwin' ? 'Command+Shift+H' : 'Control+Shift+H';
+const TOGGLE_SHORTCUT_HINT = process.platform === 'darwin' ? '⌘⇧H' : 'Ctrl+Shift+H';
 function positionFilePath() {
     return path_1.default.join(electron_1.app.getPath('userData'), 'hana-position.json');
 }
@@ -112,6 +113,18 @@ function createPetWindow() {
         mainWindow = null;
     });
 }
+function togglePetWindowVisibility() {
+    if (!mainWindow) {
+        createPetWindow();
+        return;
+    }
+    if (mainWindow.isVisible()) {
+        mainWindow.hide();
+    }
+    else {
+        mainWindow.show();
+    }
+}
 function createTray() {
     // Use a PNG for the tray icon — SVG is not supported on all platforms.
     // Fall back to an empty image if the asset is missing so the app still runs.
@@ -128,15 +141,12 @@ function createTray() {
         icon = electron_1.nativeImage.createEmpty();
     }
     tray = new electron_1.Tray(icon);
-    tray.setToolTip('Hana');
+    tray.setToolTip(`Hana — ${TOGGLE_SHORTCUT_HINT} to show or hide`);
     tray.setContextMenu(electron_1.Menu.buildFromTemplate([
         {
-            label: 'Show Hana',
+            label: `Show / hide Hana (${TOGGLE_SHORTCUT_HINT})`,
             click: () => {
-                if (!mainWindow)
-                    createPetWindow();
-                else
-                    mainWindow.show();
+                togglePetWindowVisibility();
             },
         },
         { type: 'separator' },
@@ -236,18 +246,13 @@ electron_1.app.whenReady().then(() => {
             mainWindow.focus();
         }
     });
-    electron_1.globalShortcut.register(TOGGLE_SHORTCUT, () => {
-        if (!mainWindow) {
-            createPetWindow();
-            return;
-        }
-        if (mainWindow.isVisible()) {
-            mainWindow.hide();
-        }
-        else {
-            mainWindow.show();
-        }
+    const shortcutRegistered = electron_1.globalShortcut.register(TOGGLE_SHORTCUT, () => {
+        togglePetWindowVisibility();
     });
+    if (!shortcutRegistered) {
+        console.warn(`[hana] Could not register ${TOGGLE_SHORTCUT} — another app may own it. ` +
+            'Use the menu bar tray: Show / hide Hana.');
+    }
     // macOS: re-create window when the dock icon is clicked with no open windows.
     electron_1.app.on('activate', () => {
         if (electron_1.BrowserWindow.getAllWindows().length === 0)

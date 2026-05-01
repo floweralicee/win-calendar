@@ -82,9 +82,11 @@ export function ListView({ winsByDate, onSelectWin }: ListViewProps) {
                 onClick={() => onSelectWin(win)}
               >
                 <span className="list-win-date">{formatDayLabel(date)}</span>
-                {win.area && win.area !== 'unclassified' && (
-                  <span className="list-win-area-dot" data-area={win.area} aria-hidden="true" />
-                )}
+                {win.areas
+                  ?.filter((a) => a !== 'unclassified')
+                  .map((area) => (
+                    <span key={area} className="list-win-area-dot" data-area={area} aria-hidden="true" />
+                  ))}
                 <span className="list-win-title">{win.title}</span>
                 {win.spansRange && (
                   <span className="list-win-range-badge" aria-label="spans multiple days">

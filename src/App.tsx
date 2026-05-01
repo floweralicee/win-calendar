@@ -3,7 +3,7 @@ import { Calendar } from './Calendar'
 import { WinDetail } from './WinDetail'
 import { Onboarding } from './Onboarding'
 import { JournalComposer } from './JournalComposer'
-import { fetchConfig, fetchWins, deleteWin, updateWinArea, type PublicConfig } from './api'
+import { fetchConfig, fetchWins, deleteWin, updateWinAreas, type PublicConfig } from './api'
 import type { Win, WinsByDate, LifeArea } from './wins'
 
 type ActiveView = 'month' | 'bloom' | 'year' | 'list'
@@ -97,22 +97,19 @@ export function App() {
     })
   }, [])
 
-  const handleUpdateWinArea = useCallback(async (win: Win, area: LifeArea) => {
-    await updateWinArea(win.id, area)
-    // Patch the win in local state immediately so the modal and calendar
-    // reflect the change without a full reload.
+  const handleUpdateWinAreas = useCallback(async (win: Win, areas: LifeArea[]) => {
+    await updateWinAreas(win.id, areas)
+    // Patch local state immediately — no full reload needed.
     setWinsByDate((prev) => {
       const updated = { ...prev }
       for (const [date, winsForDate] of Object.entries(updated)) {
-        const patched = winsForDate.map((w) =>
-          w.id === win.id ? { ...w, area } : w,
+        updated[date] = winsForDate.map((w) =>
+          w.id === win.id ? { ...w, areas } : w,
         )
-        updated[date] = patched
       }
       return updated
     })
-    // Keep the modal open but show the updated win.
-    setSelectedWin((prev) => (prev?.id === win.id ? { ...prev, area } : prev))
+    setSelectedWin((prev) => (prev?.id === win.id ? { ...prev, areas } : prev))
   }, [])
 
   if (loadState === 'loading') {
@@ -167,7 +164,7 @@ export function App() {
         <WinDetail
           win={selectedWin}
           onClose={() => setSelectedWin(null)}
-          onUpdateArea={handleUpdateWinArea}
+          onUpdateAreas={handleUpdateWinAreas}
         />
       )}
       {isJournalOpen && (

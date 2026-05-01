@@ -74,11 +74,11 @@ export async function deleteWin(winId: string): Promise<void> {
   await parseJsonOrThrow<{ ok: boolean }>(response)
 }
 
-export async function updateWinArea(winId: string, area: LifeArea): Promise<void> {
+export async function updateWinAreas(winId: string, areas: LifeArea[]): Promise<void> {
   const response = await fetch(`/api/wins/${encodeURIComponent(winId)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ area }),
+    body: JSON.stringify({ areas }),
   })
   await parseJsonOrThrow<{ ok: boolean }>(response)
 }

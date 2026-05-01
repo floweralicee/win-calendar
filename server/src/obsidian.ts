@@ -17,8 +17,8 @@ export type PersistedWin = {
   whatHappened: string
   lifeImpact: string
   whyItMatters: string
-  /** Which of the 5 life areas this win belongs to. */
-  area?: LifeArea
+  /** Which life areas this win belongs to. Multiple allowed. */
+  areas?: LifeArea[]
   /** ISO timestamp when the win becomes visible to the UI and the email is sent. */
   revealAt: string
   /** Resend email id once scheduled, so we can cancel/update later if we add that. */
@@ -102,7 +102,8 @@ export function renderWinBlock(win: PersistedWin): string {
   ]
   const monthName = monthNames[Number(monthStr) - 1] ?? monthStr
   const heading = `## ${monthName} ${Number(dayStr)}, ${yearStr} — ${win.title}`
-  const areaLine = win.area ? `area: ${win.area}\n` : ''
+  const areaLine =
+    win.areas && win.areas.length > 0 ? `area: ${win.areas.join(', ')}\n` : ''
   return (
     `${heading}\n` +
     areaLine +
@@ -257,16 +258,18 @@ export async function deleteWin(obsidianPath: string, winId: string): Promise<vo
 
 /**
  * Updates (or inserts) the `area:` line for a specific win in any timeline
- * markdown file. Works for both the real vault timeline and the demo file.
+ * markdown file. Accepts multiple areas (written as "area: career, growth").
+ * Works for both the real vault timeline and the demo file.
  *
  * Returns `true` if the win was found and updated, `false` if not found.
  */
-export async function updateWinAreaInFile(
+export async function updateWinAreasInFile(
   absoluteFilePath: string,
   winId: string,
-  newArea: LifeArea,
+  newAreas: LifeArea[],
 ): Promise<boolean> {
-  if (!(LIFE_AREAS as readonly string[]).includes(newArea)) return false
+  if (newAreas.length === 0) return false
+  if (!newAreas.every((a) => (LIFE_AREAS as readonly string[]).includes(a))) return false
 
   let source: string
   try {
@@ -300,14 +303,15 @@ export async function updateWinAreaInFile(
           resultLines.push(line)
           lineIndex++
           // Replace existing area: line, or insert one right after the heading.
+          const areaValue = newAreas.join(', ')
           if (
             lineIndex < lines.length &&
-            /^area:\s*\S+/i.test(lines[lineIndex])
+            /^area:\s*.+/i.test(lines[lineIndex])
           ) {
-            resultLines.push(`area: ${newArea}`)
+            resultLines.push(`area: ${areaValue}`)
             lineIndex++ // skip the old area line
           } else {
-            resultLines.push(`area: ${newArea}`)
+            resultLines.push(`area: ${areaValue}`)
           }
           continue
         }

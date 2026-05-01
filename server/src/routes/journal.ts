@@ -71,7 +71,7 @@ journal.post('/api/journal', async (c) => {
     whatHappened: win.whatHappened,
     lifeImpact: win.lifeImpact,
     whyItMatters: win.whyItMatters,
-    area: win.area,
+    areas: win.areas,
     revealAt,
   }))
 
