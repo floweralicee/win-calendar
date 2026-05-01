@@ -3,10 +3,10 @@ import { Calendar } from './Calendar'
 import { WinDetail } from './WinDetail'
 import { Onboarding } from './Onboarding'
 import { JournalComposer } from './JournalComposer'
-import { fetchConfig, fetchWins, deleteWin, type PublicConfig } from './api'
-import type { Win, WinsByDate } from './wins'
+import { fetchConfig, fetchWins, deleteWin, updateWinArea, type PublicConfig } from './api'
+import type { Win, WinsByDate, LifeArea } from './wins'
 
-type ActiveView = 'month' | 'bloom' | 'year'
+type ActiveView = 'month' | 'bloom' | 'year' | 'list'
 
 function addMonths(year: number, monthIndex: number, delta: number): { year: number; monthIndex: number } {
   const total = year * 12 + monthIndex + delta
@@ -97,6 +97,24 @@ export function App() {
     })
   }, [])
 
+  const handleUpdateWinArea = useCallback(async (win: Win, area: LifeArea) => {
+    await updateWinArea(win.id, area)
+    // Patch the win in local state immediately so the modal and calendar
+    // reflect the change without a full reload.
+    setWinsByDate((prev) => {
+      const updated = { ...prev }
+      for (const [date, winsForDate] of Object.entries(updated)) {
+        const patched = winsForDate.map((w) =>
+          w.id === win.id ? { ...w, area } : w,
+        )
+        updated[date] = patched
+      }
+      return updated
+    })
+    // Keep the modal open but show the updated win.
+    setSelectedWin((prev) => (prev?.id === win.id ? { ...prev, area } : prev))
+  }, [])
+
   if (loadState === 'loading') {
     return (
       <div className="app-status">
@@ -145,7 +163,13 @@ export function App() {
         activeView={activeView}
         onSetView={setActiveView}
       />
-      {selectedWin && <WinDetail win={selectedWin} onClose={() => setSelectedWin(null)} />}
+      {selectedWin && (
+        <WinDetail
+          win={selectedWin}
+          onClose={() => setSelectedWin(null)}
+          onUpdateArea={handleUpdateWinArea}
+        />
+      )}
       {isJournalOpen && (
         <JournalComposer
           onClose={() => setIsJournalOpen(false)}

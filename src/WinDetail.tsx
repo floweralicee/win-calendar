@@ -1,9 +1,23 @@
-import { useEffect, useRef } from 'react'
-import type { Win } from './wins'
+import { useEffect, useRef, useState } from 'react'
+import type { Win, LifeArea } from './wins'
+import { LIFE_AREAS } from './wins'
+
+const AREA_LABELS: Record<LifeArea, string> = {
+  finance: 'Finance',
+  social: 'Social',
+  growth: 'Growth',
+  health: 'Health',
+  career: 'Career',
+  unclassified: 'Other',
+}
+
+/** The 5 selectable areas (excludes unclassified — it's a fallback, not a choice). */
+const SELECTABLE_AREAS = LIFE_AREAS.filter((a) => a !== 'unclassified')
 
 type WinDetailProps = {
   win: Win
   onClose: () => void
+  onUpdateArea: (win: Win, area: LifeArea) => Promise<void>
 }
 
 const MONTH_LABELS = [
@@ -48,12 +62,27 @@ function renderInlineMarkdown(source: string) {
   })
 }
 
-export function WinDetail({ win, onClose }: WinDetailProps) {
+export function WinDetail({ win, onClose, onUpdateArea }: WinDetailProps) {
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
+  const [areaUpdateError, setAreaUpdateError] = useState<string | null>(null)
+  const [savingArea, setSavingArea] = useState(false)
 
   useEffect(() => {
     closeButtonRef.current?.focus()
   }, [])
+
+  async function handleAreaSelect(area: LifeArea) {
+    if (area === win.area || savingArea) return
+    setSavingArea(true)
+    setAreaUpdateError(null)
+    try {
+      await onUpdateArea(win, area)
+    } catch (err) {
+      setAreaUpdateError(err instanceof Error ? err.message : 'Failed to save.')
+    } finally {
+      setSavingArea(false)
+    }
+  }
 
   return (
     <div
@@ -70,10 +99,25 @@ export function WinDetail({ win, onClose }: WinDetailProps) {
       >
         <header className="win-detail-header">
           <p className="win-detail-date">{formatHumanDate(win.date)}</p>
-          {win.area && win.area !== 'unclassified' && (
-            <span className="win-detail-area-tag" data-area={win.area}>
-              {win.area}
-            </span>
+          {/* Area tag selector — shows current area and lets user re-tag */}
+          <div className="win-detail-area-row">
+            {SELECTABLE_AREAS.map((area) => (
+              <button
+                key={area}
+                type="button"
+                className="win-detail-area-btn"
+                aria-pressed={win.area === area}
+                data-area={area}
+                disabled={savingArea}
+                onClick={() => handleAreaSelect(area)}
+                title={`Tag as ${AREA_LABELS[area]}`}
+              >
+                {AREA_LABELS[area]}
+              </button>
+            ))}
+          </div>
+          {areaUpdateError && (
+            <p className="win-detail-area-error">{areaUpdateError}</p>
           )}
           <h2 id="win-detail-title" className="win-detail-title">
             {win.title}

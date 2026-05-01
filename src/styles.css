@@ -902,6 +902,178 @@ body {
   letter-spacing: 0.06em;
 }
 
+/* List view */
+
+.list-container {
+  padding: clamp(20px, 3vw, 36px) clamp(16px, 3vw, 40px) clamp(28px, 3vw, 48px);
+}
+
+.list-summary {
+  margin: 0 0 24px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--weekday-ink);
+}
+
+.list-month-section {
+  margin-bottom: 28px;
+}
+
+.list-month-section:last-child {
+  margin-bottom: 0;
+}
+
+.list-month-heading {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--weekday-ink);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.list-win-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.list-win-row {
+  all: unset;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 8px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 120ms ease;
+  min-width: 0;
+}
+
+.list-win-row:hover,
+.list-win-row:focus-visible {
+  background: var(--win-hover-bg);
+  outline: none;
+}
+
+.list-win-date {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--weekday-ink);
+  width: 46px;
+  text-align: right;
+}
+
+.list-win-area-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-bottom: 1px;
+}
+
+.list-win-area-dot[data-area="finance"] { background: var(--ring-finance); }
+.list-win-area-dot[data-area="social"]  { background: var(--ring-social); }
+.list-win-area-dot[data-area="growth"]  { background: var(--ring-growth); }
+.list-win-area-dot[data-area="health"]  { background: var(--ring-health); }
+.list-win-area-dot[data-area="career"]  { background: var(--ring-career); }
+
+.list-win-title {
+  flex: 1;
+  font-size: 13px;
+  color: var(--win-ink);
+  line-height: 1.35;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-win-range-badge {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--win-muted);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 1px 5px;
+}
+
+.list-empty {
+  display: grid;
+  place-items: center;
+  padding: 80px 24px;
+  color: var(--win-muted);
+  font-size: 14px;
+  text-align: center;
+  min-height: 300px;
+}
+
+/* Win detail — area tag selector */
+
+.win-detail-area-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.win-detail-area-btn {
+  all: unset;
+  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--win-muted);
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.win-detail-area-btn:hover:not(:disabled),
+.win-detail-area-btn:focus-visible:not(:disabled) {
+  background: var(--win-hover-bg);
+  color: var(--ink);
+  outline: none;
+}
+
+.win-detail-area-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.win-detail-area-btn[aria-pressed="true"][data-area="finance"] {
+  background: var(--ring-finance); color: var(--paper); border-color: var(--ring-finance);
+}
+.win-detail-area-btn[aria-pressed="true"][data-area="social"] {
+  background: var(--ring-social); color: var(--paper); border-color: var(--ring-social);
+}
+.win-detail-area-btn[aria-pressed="true"][data-area="growth"] {
+  background: var(--ring-growth); color: var(--paper); border-color: var(--ring-growth);
+}
+.win-detail-area-btn[aria-pressed="true"][data-area="health"] {
+  background: var(--ring-health); color: var(--paper); border-color: var(--ring-health);
+}
+.win-detail-area-btn[aria-pressed="true"][data-area="career"] {
+  background: var(--ring-career); color: var(--paper); border-color: var(--ring-career);
+}
+
+.win-detail-area-error {
+  margin: -6px 0 10px;
+  font-size: 12px;
+  color: #b14a2f;
+}
+
 /* Calendar header extras (Journal button) */
 
 .calendar-header-right {

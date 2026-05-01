@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import type { LifeArea } from './claude.ts'
+import { LIFE_AREAS } from './claude.ts'
 
 const WIN_SUBFOLDER = 'WinCalendar'
 const TIMELINE_FILENAME = 'timeline-life.md'
@@ -252,6 +253,76 @@ export async function deleteWin(obsidianPath: string, winId: string): Promise<vo
 
   const updated = resultLines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n'
   await fs.writeFile(timelinePath(obsidianPath), updated, 'utf8')
+}
+
+/**
+ * Updates (or inserts) the `area:` line for a specific win in any timeline
+ * markdown file. Works for both the real vault timeline and the demo file.
+ *
+ * Returns `true` if the win was found and updated, `false` if not found.
+ */
+export async function updateWinAreaInFile(
+  absoluteFilePath: string,
+  winId: string,
+  newArea: LifeArea,
+): Promise<boolean> {
+  if (!(LIFE_AREAS as readonly string[]).includes(newArea)) return false
+
+  let source: string
+  try {
+    source = await fs.readFile(absoluteFilePath, 'utf8')
+  } catch {
+    return false
+  }
+
+  const lines = source.split('\n')
+  const resultLines: string[] = []
+  let found = false
+  let lineIndex = 0
+
+  while (lineIndex < lines.length) {
+    const line = lines[lineIndex]
+
+    if (line.startsWith('## ')) {
+      const headingBody = line.slice(3)
+      const dashMatch = headingBody.match(/^(.+?)\s+[\u2014\u2013-]\s+(.+)$/)
+      if (dashMatch) {
+        const datePart = dashMatch[1].trim()
+        const titlePart = dashMatch[2].trim()
+        const slug = titlePart
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .slice(0, 60)
+        const parsedDate = parseDateHeading(datePart)
+        if (parsedDate && `${parsedDate}-${slug}` === winId) {
+          found = true
+          resultLines.push(line)
+          lineIndex++
+          // Replace existing area: line, or insert one right after the heading.
+          if (
+            lineIndex < lines.length &&
+            /^area:\s*\S+/i.test(lines[lineIndex])
+          ) {
+            resultLines.push(`area: ${newArea}`)
+            lineIndex++ // skip the old area line
+          } else {
+            resultLines.push(`area: ${newArea}`)
+          }
+          continue
+        }
+      }
+    }
+
+    resultLines.push(line)
+    lineIndex++
+  }
+
+  if (found) {
+    await fs.writeFile(absoluteFilePath, resultLines.join('\n'), 'utf8')
+  }
+
+  return found
 }
 
 /** Parses a heading date like "Apr 23, 2026" into "2026-04-23". */

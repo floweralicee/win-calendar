@@ -1,4 +1,4 @@
-import type { WinsByDate } from './wins'
+import type { WinsByDate, LifeArea } from './wins'
 
 export type PublicConfig = {
   onboarded: boolean
@@ -70,6 +70,15 @@ export async function submitJournal(payload: { text: string; dateISO: string }):
 export async function deleteWin(winId: string): Promise<void> {
   const response = await fetch(`/api/wins/${encodeURIComponent(winId)}`, {
     method: 'DELETE',
+  })
+  await parseJsonOrThrow<{ ok: boolean }>(response)
+}
+
+export async function updateWinArea(winId: string, area: LifeArea): Promise<void> {
+  const response = await fetch(`/api/wins/${encodeURIComponent(winId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ area }),
   })
   await parseJsonOrThrow<{ ok: boolean }>(response)
 }
