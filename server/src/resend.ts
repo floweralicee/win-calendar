@@ -1,11 +1,14 @@
 import { Resend } from 'resend'
 import type { PersistedWin } from './obsidian.ts'
+import type { EisenhowerGrid } from './eisenhower.ts'
 
 export type ScheduleMorningEmailInput = {
   to: string
   /** ISO YYYY-MM-DD the wins are for. */
   winsDateISO: string
   wins: PersistedWin[]
+  /** When goals are configured, the Eisenhower grid for active goals. */
+  eisenhowerGrid?: EisenhowerGrid
 }
 
 export type ScheduleMorningEmailResult = {
@@ -83,7 +86,71 @@ function getTimezoneOffsetMinutes(instant: Date, timezone: string): number {
   return (asUtc - instant.getTime()) / 60_000
 }
 
-function renderEmailHtml(winsDateISO: string, wins: PersistedWin[]): string {
+// ─── Eisenhower grid rendering ────────────────────────────────────────────────
+
+function renderEisenhowerHtml(grid: EisenhowerGrid): string {
+  const allItems = [...grid.urgentImportant, ...grid.notUrgentImportant]
+  if (allItems.length === 0) return ''
+
+  const itemHtml = (items: typeof allItems, label: string, accent: string) => {
+    if (items.length === 0) return ''
+    const rows = items
+      .map((item) => {
+        const weeks = Math.round(item.weeksToDeadline)
+        const deadline = weeks <= 0 ? 'overdue' : `${weeks} wk`
+        const milestone = item.goal.weeklyMilestone
+          ? `<br><span style="font-size:12px;color:#7a7874;">This week: ${escapeHtml(item.goal.weeklyMilestone)}</span>`
+          : ''
+        return `<tr>
+          <td style="padding:8px 0;border-bottom:1px solid #f0eeea;font-size:14px;color:#1a1a1a;">${escapeHtml(item.goal.title)}${milestone}</td>
+          <td style="padding:8px 0 8px 16px;border-bottom:1px solid #f0eeea;font-size:12px;color:#7a7874;white-space:nowrap;text-align:right;">${deadline}</td>
+        </tr>`
+      })
+      .join('')
+
+    return `<div style="margin-bottom:20px;">
+      <p style="margin:0 0 8px;font-size:10px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:${accent};">${label}</p>
+      <table style="width:100%;border-collapse:collapse;">${rows}</table>
+    </div>`
+  }
+
+  return `<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e6e4e0;">
+    <p style="margin:0 0 16px;font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#7a7874;">This week's priorities</p>
+    ${itemHtml(grid.urgentImportant, 'Urgent + Important — do this week', '#b14a2f')}
+    ${itemHtml(grid.notUrgentImportant, 'Important — keep building', '#7272a8')}
+  </div>`
+}
+
+function renderEisenhowerText(grid: EisenhowerGrid): string {
+  const allItems = [...grid.urgentImportant, ...grid.notUrgentImportant]
+  if (allItems.length === 0) return ''
+
+  const lines: string[] = ['\n\n── This week\'s priorities ──']
+
+  if (grid.urgentImportant.length > 0) {
+    lines.push('\nURGENT + IMPORTANT — do this week:')
+    for (const item of grid.urgentImportant) {
+      const weeks = Math.round(item.weeksToDeadline)
+      lines.push(`  • ${item.goal.title} (${weeks <= 0 ? 'overdue' : `${weeks} wk`})`)
+      if (item.goal.weeklyMilestone) lines.push(`    This week: ${item.goal.weeklyMilestone}`)
+    }
+  }
+
+  if (grid.notUrgentImportant.length > 0) {
+    lines.push('\nIMPORTANT — keep building:')
+    for (const item of grid.notUrgentImportant) {
+      const weeks = Math.round(item.weeksToDeadline)
+      lines.push(`  • ${item.goal.title} (${weeks <= 0 ? 'overdue' : `${weeks} wk`})`)
+      if (item.goal.weeklyMilestone) lines.push(`    This week: ${item.goal.weeklyMilestone}`)
+    }
+  }
+
+  return lines.join('\n')
+}
+
+// ─── Email body rendering ─────────────────────────────────────────────────────
+
+function renderEmailHtml(winsDateISO: string, wins: PersistedWin[], eisenhowerGrid?: EisenhowerGrid): string {
   const humanDate = formatHumanDate(winsDateISO)
   const blocks = wins
     .map(
@@ -115,12 +182,13 @@ function renderEmailHtml(winsDateISO: string, wins: PersistedWin[]): string {
       <h1 style="margin:0 0 24px;font-size:28px;font-weight:500;color:#1a1a1a;">Look what you did.</h1>
       ${blocks}
       <p style="margin:24px 0 0;font-size:12px;color:#7a7874;">From your Win Calendar. Go see them on the calendar whenever you\u2019re ready.</p>
+      ${eisenhowerGrid ? renderEisenhowerHtml(eisenhowerGrid) : ''}
     </div>
   </body>
 </html>`
 }
 
-function renderEmailText(winsDateISO: string, wins: PersistedWin[]): string {
+function renderEmailText(winsDateISO: string, wins: PersistedWin[], eisenhowerGrid?: EisenhowerGrid): string {
   const humanDate = formatHumanDate(winsDateISO)
   const winText = wins
     .map(
@@ -131,7 +199,8 @@ function renderEmailText(winsDateISO: string, wins: PersistedWin[]): string {
         `  Why it matters: ${win.whyItMatters}`,
     )
     .join('\n\n')
-  return `Yesterday — ${humanDate}\n\nLook what you did.\n\n${winText}\n\nFrom your Win Calendar.`
+  const goalsText = eisenhowerGrid ? renderEisenhowerText(eisenhowerGrid) : ''
+  return `Yesterday — ${humanDate}\n\nLook what you did.\n\n${winText}\n\nFrom your Win Calendar.${goalsText}`
 }
 
 function formatHumanDate(isoDate: string): string {
@@ -175,8 +244,8 @@ export async function scheduleMorningEmail(
     from,
     to: input.to,
     subject,
-    html: renderEmailHtml(input.winsDateISO, input.wins),
-    text: renderEmailText(input.winsDateISO, input.wins),
+    html: renderEmailHtml(input.winsDateISO, input.wins, input.eisenhowerGrid),
+    text: renderEmailText(input.winsDateISO, input.wins, input.eisenhowerGrid),
   })
 
   if (response.error) {

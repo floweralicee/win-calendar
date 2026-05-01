@@ -1,5 +1,25 @@
 import type { WinsByDate, LifeArea } from './wins'
 
+export type GoalStatus = 'active' | 'achieved' | 'paused'
+
+export type Goal = {
+  id: string
+  title: string
+  area: LifeArea
+  targetDate: string
+  weeklyMilestone?: string
+  status: GoalStatus
+  createdAt: string
+}
+
+export type GoalInput = {
+  title: string
+  area: LifeArea
+  targetDate: string
+  weeklyMilestone?: string
+  status?: GoalStatus
+}
+
 export type PublicConfig = {
   onboarded: boolean
   obsidianPath?: string
@@ -69,6 +89,39 @@ export async function submitJournal(payload: { text: string; dateISO: string }):
 
 export async function deleteWin(winId: string): Promise<void> {
   const response = await fetch(`/api/wins/${encodeURIComponent(winId)}`, {
+    method: 'DELETE',
+  })
+  await parseJsonOrThrow<{ ok: boolean }>(response)
+}
+
+export async function fetchGoals(): Promise<Goal[]> {
+  const response = await fetch('/api/goals')
+  const json = await parseJsonOrThrow<{ goals: Goal[] }>(response)
+  return json.goals ?? []
+}
+
+export async function createGoal(input: GoalInput): Promise<Goal> {
+  const response = await fetch('/api/goals', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const json = await parseJsonOrThrow<{ goal: Goal }>(response)
+  return json.goal
+}
+
+export async function updateGoal(id: string, updates: Partial<GoalInput & { status: GoalStatus }>): Promise<Goal> {
+  const response = await fetch(`/api/goals/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  })
+  const json = await parseJsonOrThrow<{ goal: Goal }>(response)
+  return json.goal
+}
+
+export async function removeGoal(id: string): Promise<void> {
+  const response = await fetch(`/api/goals/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   })
   await parseJsonOrThrow<{ ok: boolean }>(response)

@@ -4,10 +4,14 @@ import {
   appendJournalEntry,
   appendWinsToTimeline,
   recordWinState,
+  readTimeline,
   type PersistedWin,
 } from '../obsidian.ts'
 import { extractWinsFromJournal } from '../claude.ts'
 import { scheduleMorningEmail } from '../resend.ts'
+import { readGoals } from '../goals-store.ts'
+import { computeEisenhowerGrid } from '../eisenhower.ts'
+import { parseTimelineMarkdown } from '../timeline-parser.ts'
 
 const journal = new Hono()
 
@@ -77,12 +81,26 @@ journal.post('/api/journal', async (c) => {
 
   await appendWinsToTimeline(config.obsidianPath, persisted)
 
+  // Compute Eisenhower grid if goals exist — non-fatal if it fails.
+  let eisenhowerGrid = undefined
+  try {
+    const userGoals = await readGoals()
+    if (userGoals.some((g) => g.status === 'active')) {
+      const timelineSource = await readTimeline(config.obsidianPath)
+      const allWins = parseTimelineMarkdown(timelineSource)
+      eisenhowerGrid = computeEisenhowerGrid(userGoals, allWins)
+    }
+  } catch (err) {
+    console.warn('[journal] Eisenhower computation failed (non-fatal):', err)
+  }
+
   let scheduledEmailId: string | undefined
   try {
     const result = await scheduleMorningEmail({
       to: config.email,
       winsDateISO: dateISO,
       wins: persisted,
+      eisenhowerGrid,
     })
     scheduledEmailId = result.emailId
   } catch (error: unknown) {

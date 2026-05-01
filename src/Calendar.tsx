@@ -3,8 +3,9 @@ import { LIFE_AREAS } from './wins'
 import { BloomView } from './BloomView'
 import { HeatmapView } from './HeatmapView'
 import { ListView } from './ListView'
+import { GoalsView } from './GoalsView'
 
-type ActiveView = 'month' | 'bloom' | 'year' | 'list'
+type ActiveView = 'month' | 'bloom' | 'year' | 'list' | 'goals'
 
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const
 
@@ -149,6 +150,14 @@ export function Calendar({
             >
               List
             </button>
+            <button
+              type="button"
+              className="calendar-view-toggle-button"
+              aria-pressed={activeView === 'goals'}
+              onClick={() => onSetView('goals')}
+            >
+              Goals
+            </button>
           </div>
           <button
             type="button"
@@ -164,6 +173,7 @@ export function Calendar({
       {activeView === 'bloom' && <BloomView winsByDate={winsByDate} />}
       {activeView === 'year' && <HeatmapView winsByDate={winsByDate} />}
       {activeView === 'list' && <ListView winsByDate={winsByDate} onSelectWin={onSelectWin} />}
+      {activeView === 'goals' && <GoalsView />}
 
       <div className="calendar-grid" role="grid" style={{ display: activeView !== 'month' ? 'none' : undefined }}>
         <div className="calendar-weekday-row" role="row">

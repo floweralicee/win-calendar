@@ -159,9 +159,9 @@ Cells are small squares (not circles). Consistent with the paper aesthetic — w
 
 ---
 
-### 🔲 Stage 8 — Goal System + Eisenhower Layer
-*Status: NOT STARTED — Decision Engine Layer 1*
-*Prerequisite: Stage 7 complete*
+### ✅ Stage 8 — Goal System + Eisenhower Layer
+*Status: DONE*
+*Branch: `feature/aliceos`*
 
 **What it adds:**
 Goals are the backbone of the decision-improvement layer.
@@ -187,11 +187,11 @@ Goals are the backbone of the decision-improvement layer.
 `~/.win-calendar/goals.json` — array of goal objects. Per-user, not in the vault.
 
 **Definition of done:**
-- [ ] Goal setup form accessible from settings
-- [ ] Goals saved to `~/.win-calendar/goals.json`
-- [ ] Monday morning email includes the Eisenhower grid (text/HTML)
-- [ ] Urgency + importance calculated from goal data + win history
-- [ ] At least one test goal works end-to-end
+- [x] Goal setup form accessible from the Goals toggle view
+- [x] Goals saved to `~/.win-calendar/goals.json`
+- [x] Morning email includes the Eisenhower grid (text/HTML) when goals exist
+- [x] Urgency + importance calculated from goal data + win history
+- [x] Full CRUD (add / edit / status change / delete) works end-to-end
 
 ---
 
@@ -369,7 +369,8 @@ Stage 1 ✅
                  └─ Stage 5 ✅
                       └─ Stage 6 ✅  ← DONE
                            └─ Stage 7 ✅
-                                └─ Stage 8 🔲  ← START HERE
+                                └─ Stage 8 ✅
+                                     └─ Stage 9 🔲  ← START HERE
                                      └─ Stage 9 🔲
                                           └─ Stage 10 🔲
 ```

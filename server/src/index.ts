@@ -8,6 +8,7 @@ import { cors } from 'hono/cors'
 import onboarding from './routes/onboarding.ts'
 import journal from './routes/journal.ts'
 import wins from './routes/wins.ts'
+import goals from './routes/goals.ts'
 
 // Load operator-owned secrets from `server/.env` before any route handler runs.
 // Keys live there, never in the codebase or per-user config. Route modules only
@@ -29,6 +30,7 @@ app.get('/api/health', (c) => c.json({ ok: true }))
 app.route('/', onboarding)
 app.route('/', journal)
 app.route('/', wins)
+app.route('/', goals)
 
 const port = Number(process.env.PORT ?? 8787)
 
