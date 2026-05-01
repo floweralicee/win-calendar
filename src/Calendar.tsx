@@ -7,6 +7,29 @@ import { GoalsView } from './GoalsView'
 
 type ActiveView = 'month' | 'bloom' | 'year' | 'list' | 'goals'
 
+/** Large heading + one-line context for non-month views (month uses the grid header instead). */
+const ALT_VIEW_HEADER: Record<
+  Exclude<ActiveView, 'month'>,
+  { heading: string; tagline: string }
+> = {
+  bloom: {
+    heading: 'BLOOM',
+    tagline: 'Growth rings — one week per ring, one arc per life area',
+  },
+  year: {
+    heading: 'YEAR',
+    tagline: 'Five heatmaps — finance, social, growth, health, career',
+  },
+  list: {
+    heading: 'ALL WINS',
+    tagline: 'Chronological list across every month with data',
+  },
+  goals: {
+    heading: 'GOALS',
+    tagline: 'Milestones, deadlines, and what you are steering toward',
+  },
+}
+
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const
 
 const MONTH_LABELS = [
@@ -83,52 +106,79 @@ export function Calendar({
   return (
     <div className="calendar">
       <header className="calendar-header">
-        {/* Top row: month navigation + year + journal */}
-        <div className="calendar-header-top">
-          <div className="calendar-heading-group">
-            <button
-              type="button"
-              className="calendar-nav-button"
-              onClick={onPreviousMonth}
-              aria-label="Previous month"
-            >
-              <span aria-hidden="true">‹</span>
-            </button>
-            <h1 className="calendar-month">
+        {activeView === 'month' ? (
+          /* Month view only: printed-calendar month rail + year + journal */
+          <div className="calendar-header-top">
+            <div className="calendar-heading-group">
               <button
                 type="button"
-                className="calendar-month-button"
-                onClick={onJumpToToday}
-                title="Jump to today"
+                className="calendar-nav-button"
+                onClick={onPreviousMonth}
+                aria-label="Previous month"
               >
-                {MONTH_LABELS[month]}
+                <span aria-hidden="true">‹</span>
               </button>
-            </h1>
-            <button
-              type="button"
-              className="calendar-nav-button"
-              onClick={onNextMonth}
-              aria-label="Next month"
-            >
-              <span aria-hidden="true">›</span>
-            </button>
-          </div>
-          <div className="calendar-header-right">
-            <div className="calendar-year" aria-label={String(year)}>
-              <span className="calendar-year-bullet" aria-hidden="true">•</span>
-              <span className="calendar-year-number">{year}</span>
-              <span className="calendar-year-bullet" aria-hidden="true">•</span>
+              <h1 className="calendar-month">
+                <button
+                  type="button"
+                  className="calendar-month-button"
+                  onClick={onJumpToToday}
+                  title="Jump to today"
+                >
+                  {MONTH_LABELS[month]}
+                </button>
+              </h1>
+              <button
+                type="button"
+                className="calendar-nav-button"
+                onClick={onNextMonth}
+                aria-label="Next month"
+              >
+                <span aria-hidden="true">›</span>
+              </button>
             </div>
-            <button
-              type="button"
-              className="calendar-journal-button"
-              onClick={onOpenJournal}
-              title="Write tonight's journal"
-            >
-              Journal
-            </button>
+            <div className="calendar-header-right">
+              <div className="calendar-year" aria-label={String(year)}>
+                <span className="calendar-year-bullet" aria-hidden="true">•</span>
+                <span className="calendar-year-number">{year}</span>
+                <span className="calendar-year-bullet" aria-hidden="true">•</span>
+              </div>
+              <button
+                type="button"
+                className="calendar-journal-button"
+                onClick={onOpenJournal}
+                title="Write tonight's journal"
+              >
+                Journal
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Bloom / Year / List / Goals: app bar with view title (no month chrome) */
+          <div className="calendar-app-bar">
+            <div className="calendar-app-bar-main">
+              <div className="calendar-app-bar-titles">
+                <p className="calendar-app-bar-wordmark" aria-hidden="true">
+                  GrowthOS
+                </p>
+                <h1 className="calendar-app-bar-heading">
+                  {ALT_VIEW_HEADER[activeView].heading}
+                </h1>
+                <p className="calendar-app-bar-tagline">
+                  {ALT_VIEW_HEADER[activeView].tagline}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="calendar-journal-button"
+                onClick={onOpenJournal}
+                title="Write tonight's journal"
+              >
+                Journal
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* View toggle: own row so it's always full-width and easy to tap */}
         <div className="calendar-view-toggle" role="group" aria-label="View">

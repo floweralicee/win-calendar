@@ -181,7 +181,7 @@ function renderEmailHtml(winsDateISO: string, wins: PersistedWin[], eisenhowerGr
       )}</p>
       <h1 style="margin:0 0 24px;font-size:28px;font-weight:500;color:#1a1a1a;">Look what you did.</h1>
       ${blocks}
-      <p style="margin:24px 0 0;font-size:12px;color:#7a7874;">From your Win Calendar. Go see them on the calendar whenever you\u2019re ready.</p>
+      <p style="margin:24px 0 0;font-size:12px;color:#7a7874;">From GrowthOS. Open the app whenever you\u2019re ready.</p>
       ${eisenhowerGrid ? renderEisenhowerHtml(eisenhowerGrid) : ''}
     </div>
   </body>
@@ -200,7 +200,7 @@ function renderEmailText(winsDateISO: string, wins: PersistedWin[], eisenhowerGr
     )
     .join('\n\n')
   const goalsText = eisenhowerGrid ? renderEisenhowerText(eisenhowerGrid) : ''
-  return `Yesterday — ${humanDate}\n\nLook what you did.\n\n${winText}\n\nFrom your Win Calendar.${goalsText}`
+  return `Yesterday — ${humanDate}\n\nLook what you did.\n\n${winText}\n\nFrom GrowthOS.${goalsText}`
 }
 
 function formatHumanDate(isoDate: string): string {

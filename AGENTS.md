@@ -1,11 +1,11 @@
-# Win Calendar — Agent Instructions
+# GrowthOS — Agent Instructions
 
 <!-- This is the single source of truth for all AI coding agents. CLAUDE.md is a symlink to this file. -->
 <!-- AGENTS.md spec: https://github.com/agentsmd/agents.md — supported by Claude Code, Cursor, Copilot, Gemini CLI, and others. -->
 
 ## Overview
 
-Win Calendar is a personal monthly calendar that shows Alice's "winning list" — the wins of the day — for every day of the month. The UI is intentionally austere: a printed-paper-style month grid with **nothing else on screen**. No navigation chrome, no sidebars, no toolbars, no theming toggles. The calendar itself is the product.
+GrowthOS (repo: `win-calendar`) is a personal monthly calendar that shows Alice's "winning list" — the wins of the day — for every day of the month. The UI is intentionally austere: a printed-paper-style month grid with **nothing else on screen**. No navigation chrome, no sidebars, no toolbars, no theming toggles. The calendar itself is the product.
 
 ### Current Phase
 

@@ -1,4 +1,4 @@
-# Win Calendar — Product Roadmap
+# GrowthOS — Product Roadmap
 > Living document. Updated as stages complete. Agents must read this before touching any code.
 > Last updated: 2026-04-30
 

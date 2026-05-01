@@ -221,7 +221,7 @@ function friendlyJournalFetchError(error: unknown): string {
 
   if (isUnreachable) {
     return (
-      "Can't reach the Win Calendar server (127.0.0.1:8787). " +
+      "Can't reach the GrowthOS server (127.0.0.1:8787). " +
       'Open a terminal in the win-calendar folder and run: npm run dev'
     )
   }

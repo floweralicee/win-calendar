@@ -2,7 +2,7 @@
   "name": "hana-desktop",
   "version": "0.0.1",
   "private": true,
-  "description": "Hana — Win Calendar desktop pet",
+  "description": "Hana — GrowthOS desktop pet",
   "main": "dist-electron/main.js",
   "scripts": {
     "start": "npm run build:renderer && npm run build:main && electron .",

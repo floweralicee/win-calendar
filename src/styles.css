@@ -137,6 +137,57 @@ body {
   line-height: 1;
 }
 
+/* Bloom / Year / List / Goals: top bar (no month + chevrons + year rail) */
+
+.calendar-app-bar {
+  width: 100%;
+}
+
+.calendar-app-bar-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.calendar-app-bar-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.calendar-app-bar-wordmark {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: var(--win-muted);
+  line-height: 1.2;
+}
+
+.calendar-app-bar-heading {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: var(--ink);
+  line-height: 1.05;
+}
+
+.calendar-app-bar-tagline {
+  margin: 0;
+  max-width: 48ch;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0.02em;
+  color: var(--win-muted);
+}
+
 .calendar-grid {
   display: grid;
   grid-template-rows: auto 1fr;
@@ -1486,10 +1537,10 @@ body {
 
 .onboarding-eyebrow {
   margin: 0 0 6px;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: none;
   color: var(--weekday-ink);
 }
 
@@ -1859,6 +1910,27 @@ body {
     font-size: clamp(14px, 4vw, 20px);
     letter-spacing: 0.12em;
     gap: 6px;
+  }
+
+  .calendar-app-bar-main {
+    grid-template-columns: 1fr;
+    align-items: start;
+    padding-bottom: 10px;
+    gap: 10px;
+  }
+
+  .calendar-app-bar-heading {
+    font-size: clamp(22px, 7vw, 32px);
+    letter-spacing: 0.12em;
+  }
+
+  .calendar-app-bar-tagline {
+    font-size: 11px;
+    max-width: none;
+  }
+
+  .calendar-app-bar-main .calendar-journal-button {
+    justify-self: start;
   }
 
   .calendar-journal-button {

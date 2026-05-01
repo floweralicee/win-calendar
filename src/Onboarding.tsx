@@ -47,7 +47,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   return (
     <div className="onboarding">
       <div className="onboarding-card">
-        <p className="onboarding-eyebrow">Set up Win Calendar</p>
+        <p className="onboarding-eyebrow">GrowthOS</p>
         <h1 className="onboarding-title">One-time setup.</h1>
         <p className="onboarding-subtitle">
           Everything stays on this Mac. Your journal and wins are written into your Obsidian vault. The app's API

@@ -1,4 +1,4 @@
-# Win Calendar
+# GrowthOS
 
 A personal monthly calendar for tracking daily wins. Minimal, printed-paper aesthetic — the calendar itself is the entire UI.
 
