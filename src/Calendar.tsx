@@ -83,89 +83,94 @@ export function Calendar({
   return (
     <div className="calendar">
       <header className="calendar-header">
-        <div className="calendar-heading-group">
-          <button
-            type="button"
-            className="calendar-nav-button"
-            onClick={onPreviousMonth}
-            aria-label="Previous month"
-          >
-            <span aria-hidden="true">‹</span>
-          </button>
-          <h1 className="calendar-month">
+        {/* Top row: month navigation + year + journal */}
+        <div className="calendar-header-top">
+          <div className="calendar-heading-group">
             <button
               type="button"
-              className="calendar-month-button"
-              onClick={onJumpToToday}
-              title="Jump to today"
+              className="calendar-nav-button"
+              onClick={onPreviousMonth}
+              aria-label="Previous month"
             >
-              {MONTH_LABELS[month]}
+              <span aria-hidden="true">‹</span>
             </button>
-          </h1>
-          <button
-            type="button"
-            className="calendar-nav-button"
-            onClick={onNextMonth}
-            aria-label="Next month"
-          >
-            <span aria-hidden="true">›</span>
-          </button>
+            <h1 className="calendar-month">
+              <button
+                type="button"
+                className="calendar-month-button"
+                onClick={onJumpToToday}
+                title="Jump to today"
+              >
+                {MONTH_LABELS[month]}
+              </button>
+            </h1>
+            <button
+              type="button"
+              className="calendar-nav-button"
+              onClick={onNextMonth}
+              aria-label="Next month"
+            >
+              <span aria-hidden="true">›</span>
+            </button>
+          </div>
+          <div className="calendar-header-right">
+            <div className="calendar-year" aria-label={String(year)}>
+              <span className="calendar-year-bullet" aria-hidden="true">•</span>
+              <span className="calendar-year-number">{year}</span>
+              <span className="calendar-year-bullet" aria-hidden="true">•</span>
+            </div>
+            <button
+              type="button"
+              className="calendar-journal-button"
+              onClick={onOpenJournal}
+              title="Write tonight's journal"
+            >
+              Journal
+            </button>
+          </div>
         </div>
-        <div className="calendar-header-right">
-          <div className="calendar-year" aria-label={String(year)}>
-            <span className="calendar-year-bullet" aria-hidden="true">•</span>
-            <span className="calendar-year-number">{year}</span>
-            <span className="calendar-year-bullet" aria-hidden="true">•</span>
-          </div>
-          <div className="calendar-view-toggle" role="group" aria-label="View">
-            <button
-              type="button"
-              className="calendar-view-toggle-button"
-              aria-pressed={activeView === 'month'}
-              onClick={() => onSetView('month')}
-            >
-              Month
-            </button>
-            <button
-              type="button"
-              className="calendar-view-toggle-button"
-              aria-pressed={activeView === 'bloom'}
-              onClick={() => onSetView('bloom')}
-            >
-              Bloom
-            </button>
-            <button
-              type="button"
-              className="calendar-view-toggle-button"
-              aria-pressed={activeView === 'year'}
-              onClick={() => onSetView('year')}
-            >
-              Year
-            </button>
-            <button
-              type="button"
-              className="calendar-view-toggle-button"
-              aria-pressed={activeView === 'list'}
-              onClick={() => onSetView('list')}
-            >
-              List
-            </button>
-            <button
-              type="button"
-              className="calendar-view-toggle-button"
-              aria-pressed={activeView === 'goals'}
-              onClick={() => onSetView('goals')}
-            >
-              Goals
-            </button>
-          </div>
+
+        {/* View toggle: own row so it's always full-width and easy to tap */}
+        <div className="calendar-view-toggle" role="group" aria-label="View">
           <button
             type="button"
-            className="calendar-journal-button"
-            onClick={onOpenJournal}
-            title="Write tonight's journal"
+            className="calendar-view-toggle-button"
+            aria-pressed={activeView === 'month'}
+            onClick={() => onSetView('month')}
           >
-            Journal
+            Month
+          </button>
+          <button
+            type="button"
+            className="calendar-view-toggle-button"
+            aria-pressed={activeView === 'bloom'}
+            onClick={() => onSetView('bloom')}
+          >
+            Bloom
+          </button>
+          <button
+            type="button"
+            className="calendar-view-toggle-button"
+            aria-pressed={activeView === 'year'}
+            onClick={() => onSetView('year')}
+          >
+            Year
+          </button>
+          <button
+            type="button"
+            className="calendar-view-toggle-button"
+            aria-pressed={activeView === 'list'}
+            onClick={() => onSetView('list')}
+          >
+            List
+          </button>
+          <button
+            type="button"
+            className="calendar-view-toggle-button"
+            aria-pressed={activeView === 'goals'}
+            onClick={() => onSetView('goals')}
+          >
+            Goals
           </button>
         </div>
       </header>
