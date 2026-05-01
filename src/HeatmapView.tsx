@@ -26,23 +26,49 @@ const AREA_LABELS: Record<LifeArea, string> = {
   unclassified: 'Other',
 }
 
-// RGBA channels kept in sync with --ring-* CSS tokens.
-// Inline RGBA (not element opacity) keeps today's outline at full strength.
-const AREA_RGB: Record<LifeArea, string> = {
-  finance:      '184, 151,  58',
-  social:       '184, 112, 106',
-  growth:       '110, 158, 116',
-  health:       ' 94, 151, 168',
-  career:       '114, 114, 168',
-  unclassified: '106, 104, 100',
+// RGB values for each area color — kept in sync with --ring-* CSS tokens.
+const AREA_RGB: Record<LifeArea, [number, number, number]> = {
+  finance:      [184, 151,  58],
+  social:       [184, 112, 106],
+  growth:       [110, 158, 116],
+  health:       [ 94, 151, 168],
+  career:       [114, 114, 168],
+  unclassified: [106, 104, 100],
 }
 
-// Opacity per win-count bucket: 1 / 2 / 3 / 4+
-const INTENSITY_STOPS = [0.22, 0.48, 0.72, 0.92] as const
+// --rule: #e6e4e0 — the empty cell background we blend toward.
+const RULE_RGB: [number, number, number] = [230, 228, 224]
 
-function intensityOpacity(count: number): number {
-  if (count === 0) return 0
-  return INTENSITY_STOPS[Math.min(count - 1, INTENSITY_STOPS.length - 1)]
+// Blend weights per win-count bucket: 1 / 2 / 3 / 4+
+// Weight 1.0 = full area color; lower = blended toward the --rule background.
+// All stops produce a color DARKER than the empty --rule cell so intensity is
+// always clearly visible (rgba opacity doesn't guarantee this on a white page).
+const BLEND_STOPS = [0.38, 0.62, 0.82, 1.0] as const
+
+/**
+ * Blends the area color toward --rule by `weight` (0 = pure rule, 1 = full
+ * area color). Returns a CSS `rgb()` string safe to use as backgroundColor.
+ */
+function blendAreaWithRule(
+  areaRGB: [number, number, number],
+  weight: number,
+): string {
+  const [r, g, b] = areaRGB.map((channel, i) =>
+    Math.round(RULE_RGB[i] * (1 - weight) + channel * weight),
+  )
+  return `rgb(${r}, ${g}, ${b})`
+}
+
+function intensityColor(area: LifeArea, count: number): string | undefined {
+  if (count === 0) return undefined
+  const weight = BLEND_STOPS[Math.min(count - 1, BLEND_STOPS.length - 1)]
+  return blendAreaWithRule(AREA_RGB[area], weight)
+}
+
+// Full-color version for labels/dots where we want the richest shade.
+function areaColor(area: LifeArea): string {
+  const [r, g, b] = AREA_RGB[area]
+  return `rgb(${r}, ${g}, ${b})`
 }
 
 // Left offset (px) for the shared month label row:
@@ -228,7 +254,7 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
             <div className="heatmap-area-name-col">
               <span
                 className="heatmap-area-name"
-                style={{ color: `rgba(${AREA_RGB[area]}, 1)` }}
+                style={{ color: areaColor(area) }}
               >
                 {AREA_LABELS[area]}
               </span>
@@ -255,7 +281,6 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
                 {columns.flatMap((column) =>
                   column.map((cell) => {
                     const count = cell.countsByArea[area]
-                    const opacity = intensityOpacity(count)
 
                     return (
                       <div
@@ -270,7 +295,7 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
                           .join(' ')}
                         style={
                           count > 0
-                            ? { backgroundColor: `rgba(${AREA_RGB[area]}, ${opacity})` }
+                            ? { backgroundColor: intensityColor(area, count) }
                             : undefined
                         }
                         onMouseEnter={(e) => handleCellEnter(e, cell, area)}
@@ -300,7 +325,7 @@ export function HeatmapView({ winsByDate }: HeatmapViewProps) {
           <div className="heatmap-tooltip-header">
             <span
               className="heatmap-tooltip-dot"
-              style={{ backgroundColor: `rgba(${AREA_RGB[tooltip.area]}, 0.88)` }}
+              style={{ backgroundColor: areaColor(tooltip.area) }}
             />
             <span className="heatmap-tooltip-area">
               {AREA_LABELS[tooltip.area]}
