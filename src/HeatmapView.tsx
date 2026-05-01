@@ -36,36 +36,40 @@ const AREA_RGB: Record<LifeArea, [number, number, number]> = {
   unclassified: [106, 104, 100],
 }
 
-// --rule: #e6e4e0 — the empty cell background we blend toward.
-const RULE_RGB: [number, number, number] = [230, 228, 224]
-
-// Blend weights per win-count bucket: 1 / 2 / 3 / 4+
-// Weight 1.0 = full area color; lower = blended toward the --rule background.
-// All stops produce a color DARKER than the empty --rule cell so intensity is
-// always clearly visible (rgba opacity doesn't guarantee this on a white page).
-const BLEND_STOPS = [0.38, 0.62, 0.82, 1.0] as const
-
 /**
- * Blends the area color toward --rule by `weight` (0 = pure rule, 1 = full
- * area color). Returns a CSS `rgb()` string safe to use as backgroundColor.
+ * 4-step intensity scale.
+ *
+ * 1 win  → tint:  area color blended 68% with white — clearly visible but light
+ * 2 wins → full:  pure area color at 100%
+ * 3 wins → dark:  area color at 80% brightness (visibly deeper than full)
+ * 4+wins → deep:  area color at 62% brightness (rich, saturated)
+ *
+ * Going light → full → progressively darker means streak density reads
+ * immediately: more activity = richer, darker cell.
  */
-function blendAreaWithRule(
-  areaRGB: [number, number, number],
-  weight: number,
-): string {
-  const [r, g, b] = areaRGB.map((channel, i) =>
-    Math.round(RULE_RGB[i] * (1 - weight) + channel * weight),
-  )
-  return `rgb(${r}, ${g}, ${b})`
-}
+type IntensityStep =
+  | { kind: 'tint'; whiteMix: number }
+  | { kind: 'dark'; factor: number }
+
+const INTENSITY_STEPS: IntensityStep[] = [
+  { kind: 'tint', whiteMix: 0.68 },  // 1 win
+  { kind: 'tint', whiteMix: 1.00 },  // 2 wins  (whiteMix 1 = pure area color)
+  { kind: 'dark', factor: 0.80 },    // 3 wins
+  { kind: 'dark', factor: 0.62 },    // 4+ wins
+]
 
 function intensityColor(area: LifeArea, count: number): string | undefined {
   if (count === 0) return undefined
-  const weight = BLEND_STOPS[Math.min(count - 1, BLEND_STOPS.length - 1)]
-  return blendAreaWithRule(AREA_RGB[area], weight)
+  const [r, g, b] = AREA_RGB[area]
+  const step = INTENSITY_STEPS[Math.min(count - 1, INTENSITY_STEPS.length - 1)]
+  if (step.kind === 'tint') {
+    const w = step.whiteMix
+    return `rgb(${Math.round(255*(1-w)+r*w)}, ${Math.round(255*(1-w)+g*w)}, ${Math.round(255*(1-w)+b*w)})`
+  }
+  const f = step.factor
+  return `rgb(${Math.round(r*f)}, ${Math.round(g*f)}, ${Math.round(b*f)})`
 }
 
-// Full-color version for labels/dots where we want the richest shade.
 function areaColor(area: LifeArea): string {
   const [r, g, b] = AREA_RGB[area]
   return `rgb(${r}, ${g}, ${b})`
