@@ -4,8 +4,11 @@ import { BloomView } from './BloomView'
 import { HeatmapView } from './HeatmapView'
 import { ListView } from './ListView'
 import { GoalsView } from './GoalsView'
+import { OrbitView } from './OrbitView'
+import { DashboardView } from './DashboardView'
+import { MapView } from './MapView'
 
-type ActiveView = 'month' | 'bloom' | 'year' | 'list' | 'goals'
+type ActiveView = 'month' | 'bloom' | 'year' | 'list' | 'goals' | 'orbit' | 'dashboard' | 'map'
 
 /** Large heading + one-line context for non-month views (month uses the grid header instead). */
 const ALT_VIEW_HEADER: Record<
@@ -27,6 +30,18 @@ const ALT_VIEW_HEADER: Record<
   goals: {
     heading: 'GOALS',
     tagline: 'Milestones, deadlines, and what you are steering toward',
+  },
+  orbit: {
+    heading: 'ORBIT',
+    tagline: 'Every win in time — spiral from your first step to now',
+  },
+  dashboard: {
+    heading: 'DASHBOARD',
+    tagline: 'Decision Engine — one priority from goals, deadlines, and wins',
+  },
+  map: {
+    heading: 'MAP',
+    tagline: 'Life areas, goals, and win clusters as one connected shape',
   },
 }
 
@@ -222,6 +237,30 @@ export function Calendar({
           >
             Goals
           </button>
+          <button
+            type="button"
+            className="calendar-view-toggle-button"
+            aria-pressed={activeView === 'orbit'}
+            onClick={() => onSetView('orbit')}
+          >
+            Orbit
+          </button>
+          <button
+            type="button"
+            className="calendar-view-toggle-button"
+            aria-pressed={activeView === 'dashboard'}
+            onClick={() => onSetView('dashboard')}
+          >
+            Dashboard
+          </button>
+          <button
+            type="button"
+            className="calendar-view-toggle-button"
+            aria-pressed={activeView === 'map'}
+            onClick={() => onSetView('map')}
+          >
+            Map
+          </button>
         </div>
       </header>
 
@@ -229,6 +268,9 @@ export function Calendar({
       {activeView === 'year' && <HeatmapView winsByDate={winsByDate} />}
       {activeView === 'list' && <ListView winsByDate={winsByDate} onSelectWin={onSelectWin} />}
       {activeView === 'goals' && <GoalsView />}
+      {activeView === 'orbit' && <OrbitView winsByDate={winsByDate} onSelectWin={onSelectWin} />}
+      {activeView === 'dashboard' && <DashboardView />}
+      {activeView === 'map' && <MapView onOpenGoals={() => onSetView('goals')} />}
 
       <div className="calendar-grid" role="grid" style={{ display: activeView !== 'month' ? 'none' : undefined }}>
         <div className="calendar-weekday-row" role="row">
