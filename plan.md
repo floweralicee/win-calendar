@@ -26,7 +26,7 @@ Every win, task, and goal belongs to one of these areas.
 
 ## Architecture Principles (don't violate these)
 
-1. **Read agents.md first.** All existing conventions apply. This doc adds to them.
+1. **Read AGENTS.md first.** All existing conventions apply. This doc adds to them.
 2. **One stage at a time.** Complete and ship each stage before starting the next.
 3. **Data schema is sacred.** Every stage that adds data fields must document them in `server/src/schema.md`. Never break backwards compatibility with existing `timeline-life.md` files.
 4. **No new dependencies without a reason in this file.** The existing stack (React, Hono, Vite, AI SDK, Resend) handles everything. Add a dep only if it's truly irreplaceable — note it here.
@@ -109,8 +109,8 @@ Sixth view toggle: **Orbit**. SVG spiral of all wins in chronological order (cen
 
 ---
 
-### ✅ Stage 10 — Dashboard View
-*Status: DONE — Decision Engine Layer 3 (Synthesis + Output)*
+### 🔲 Stage 10 — Dashboard View
+*Status: NOT STARTED — Decision Engine Layer 3 (Synthesis + Output)*
 *Prerequisite: Stage 9 complete ✅*
 
 **What it adds:**
@@ -152,25 +152,25 @@ Drift alert (shown when triggered, not always):
 - `server/src/decision-engine.ts` (~120 lines)
 - `server/src/routes/dashboard.ts` (~60 lines) — `GET /api/dashboard` returns priority card + drift alerts + chart data
 
-**No new runtime npm dependencies.** Vitest was added as a dev dependency for the required tests.
+**No new npm dependencies.**
 
 **Definition of done:**
-- [x] Dashboard view added to view toggle
-- [x] Growth chart renders with all 5 area lines + total line, hand-written SVG
-- [x] All-time default, 30d / 90d / all-time toggle works
-- [x] Hover tooltip shows week + per-area breakdown
-- [x] Active goals + progress bars render with real data
-- [x] Eisenhower grid renders visually
-- [x] Priority card renders with cited evidence
-- [x] Drift alerts fire when a goal category goes quiet >= 2 weeks
-- [x] "What to do now" button calls `GET /api/dashboard/now` and shows result
-- [x] Morning email updated to include Decision Engine paragraph
-- [x] No new runtime npm dependencies
+- [ ] Dashboard view added to view toggle (8th button)
+- [ ] Growth chart renders with all 5 area lines + total line, hand-written SVG
+- [ ] All-time default, 30d / 90d / all-time toggle works
+- [ ] Hover tooltip shows week + per-area breakdown
+- [ ] Active goals + progress bars render with real data
+- [ ] Eisenhower grid renders visually
+- [ ] Priority card renders with cited evidence
+- [ ] Drift alerts fire when a goal category goes quiet ≥ 2 weeks
+- [ ] "What to do now" button calls `GET /api/dashboard/now` and shows result
+- [ ] Morning email updated to include Decision Engine paragraph
+- [ ] No new npm dependencies
 
 ---
 
-### ✅ Stage 11 — Life Map
-*Status: DONE*
+### 🔲 Stage 11 — Life Map
+*Status: NOT STARTED*
 *Prerequisite: Stage 10 complete*
 
 **What it adds:**
@@ -240,7 +240,7 @@ No edge labels. Connections speak for themselves.
 ```ts
 type MapNode =
   | { kind: 'area';    id: string; area: LifeArea; label: string }
-  | { kind: 'goal';    id: string; area: LifeArea; title: string; status: GoalStatus; targetDate: string }
+  | { kind: 'goal';    id: string; area: LifeArea; title: string; status: GoalStatus }
   | { kind: 'cluster'; id: string; area: LifeArea; week: string; count: number }
 
 type MapEdge = {
@@ -258,17 +258,17 @@ If fewer than 2 active goals exist: render area nodes only (no goals, no cluster
 **No new npm dependencies.**
 
 **Definition of done:**
-- [x] Map view added to view toggle (after Dashboard)
-- [x] `GET /api/map` returns correct nodes and edges from real data
-- [x] Force simulation settles correctly — areas near centre, goals orbit areas, clusters near areas
-- [x] All three node types render correctly with correct sizing and color
-- [x] Edges render as hairlines connecting the right nodes
-- [x] Hover tooltips work on goals and clusters
-- [x] Click life area node highlights connected nodes correctly
-- [x] Empty state renders when < 2 active goals
-- [x] No continuous animation after settle — static after ~120 iterations
-- [x] No new runtime npm dependencies
-- [x] No regressions on existing views
+- [ ] Map view added to view toggle (8th button, after Dashboard)
+- [ ] `GET /api/map` returns correct nodes and edges from real data
+- [ ] Force simulation settles correctly — areas near centre, goals orbit areas, clusters near areas
+- [ ] All three node types render correctly with correct sizing and color
+- [ ] Edges render as hairlines connecting the right nodes
+- [ ] Hover tooltips work on goals and clusters
+- [ ] Click life area node highlights connected nodes correctly
+- [ ] Empty state renders when < 2 active goals
+- [ ] No continuous animation after settle — static after ~120 frames
+- [ ] No new npm dependencies
+- [ ] No regressions on existing views
 
 ---
 
@@ -284,8 +284,8 @@ Stage 1  ✅
                            └─ Stage 7  ✅
                                 └─ Stage 8  ✅
                                      └─ Stage 9  ✅
-                                          └─ Stage 10  ✅
-                                               └─ Stage 11  ✅
+                                          └─ Stage 10  🔲  ← START HERE
+                                               └─ Stage 11  🔲
 ```
 
 ---
@@ -344,7 +344,7 @@ Layer 3 (Stage 10) — Synthesis
 ## Open Design Questions
 
 - **Stage 9:** Should energy be a slider (1–5) or descriptive word (low / medium / high / exceptional)? Words are faster; numbers are easier to model.
-- **Stage 10:** "What to do now" is app-only for now via `GET /api/dashboard/now`; it does not write `ONE-THING.md`.
+- **Stage 10:** "What to do now" — does this write to ONE-THING.md in the vault, or is it app-only?
 - **Stage 10 chart:** When a category has zero wins for weeks, line holds flat at last value. *(Resolved)*
 - **Stage 11:** Win clusters represent one week per area. Should very old weeks (> 12 weeks ago) be faded or omitted to keep the map from getting cluttered? Suggestion: fade clusters older than 8 weeks to 30% opacity, omit clusters older than 16 weeks entirely.
 
@@ -359,4 +359,4 @@ Layer 3 (Stage 10) — Synthesis
 
 ---
 
-*Start with Stage 10. Read agents.md. Read this file. Then read the relevant stage definition. Then and only then touch code.*
+*Start with Stage 10. Read AGENTS.md. Read this file. Then read the relevant stage definition. Then and only then touch code.*

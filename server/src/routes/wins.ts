@@ -1,14 +1,15 @@
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Hono } from 'hono'
 import { readConfig } from '../config-store.ts'
-import { deleteWin, updateWinAreasInFile } from '../obsidian.ts'
+import { getRevealAtMap, readTimeline, deleteWin, updateWinAreasInFile } from '../obsidian.ts'
+import { parseTimelineMarkdown } from '../timeline-parser.ts'
 import { LIFE_AREAS, type LifeArea } from '../claude.ts'
-import { readVisibleWinsByDate } from '../wins-query.ts'
 
 const wins = new Hono()
 
-/** Repo root (`win-calendar/`), not `process.cwd()` because npm may run elsewhere. */
+/** Repo root (`win-calendar/`), not `process.cwd()` — `npm` may run with a different cwd. */
 function winCalendarRepoRoot(): string {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 }
@@ -19,7 +20,44 @@ function winCalendarRepoRoot(): string {
  * entirely. The browser never sees tonight's wins until morning.
  */
 wins.get('/api/wins', async (c) => {
-  return c.json({ winsByDate: await readVisibleWinsByDate() })
+  const config = await readConfig()
+  const demoTimelineEnv = process.env.WIN_CALENDAR_DEMO_TIMELINE?.trim()
+
+  let timelineSource: string
+  let revealAtMap: Record<string, string>
+
+  if (demoTimelineEnv) {
+    const resolved = path.isAbsolute(demoTimelineEnv)
+      ? demoTimelineEnv
+      : path.resolve(winCalendarRepoRoot(), demoTimelineEnv)
+    timelineSource = await readFile(resolved, 'utf8')
+    revealAtMap = config ? await getRevealAtMap(config.obsidianPath) : {}
+  } else {
+    if (!config) {
+      return c.json({ winsByDate: {} })
+    }
+    const [fromVault, fromState] = await Promise.all([
+      readTimeline(config.obsidianPath),
+      getRevealAtMap(config.obsidianPath),
+    ])
+    timelineSource = fromVault
+    revealAtMap = fromState
+  }
+
+  const allWinsByDate = parseTimelineMarkdown(timelineSource)
+  const now = Date.now()
+
+  const visible: Record<string, unknown[]> = {}
+  for (const [date, winsForDate] of Object.entries(allWinsByDate)) {
+    const kept = winsForDate.filter((win) => {
+      const revealAt = revealAtMap[win.id]
+      if (!revealAt) return true
+      return Date.parse(revealAt) <= now
+    })
+    if (kept.length > 0) visible[date] = kept
+  }
+
+  return c.json({ winsByDate: visible })
 })
 
 /**

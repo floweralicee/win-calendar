@@ -17,7 +17,7 @@ Open [http://localhost:5173](http://localhost:5173).
 
 ## Agent Instructions
 
-All AI coding agents working in this repo must read **[agents.md](./agents.md)** first. It's the single source of truth for architecture, conventions, and what not to do. It self-updates as the project evolves.
+All AI coding agents working in this repo must read **[AGENTS.md](./AGENTS.md)** first. It's the single source of truth for architecture, conventions, and what not to do. It self-updates as the project evolves.
 
 ## Status
 

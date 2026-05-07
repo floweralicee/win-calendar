@@ -2,12 +2,6 @@ import { Resend } from 'resend'
 import type { PersistedWin } from './obsidian.ts'
 import type { EisenhowerGrid } from './eisenhower.ts'
 
-export type DecisionEmailSummary = {
-  title: string
-  body: string
-  evidence: string[]
-}
-
 export type ScheduleMorningEmailInput = {
   to: string
   /** ISO YYYY-MM-DD the wins are for. */
@@ -15,8 +9,6 @@ export type ScheduleMorningEmailInput = {
   wins: PersistedWin[]
   /** When goals are configured, the Eisenhower grid for active goals. */
   eisenhowerGrid?: EisenhowerGrid
-  /** Deterministic Decision Engine summary for the morning digest. */
-  decisionSummary?: DecisionEmailSummary
 }
 
 export type ScheduleMorningEmailResult = {
@@ -156,32 +148,9 @@ function renderEisenhowerText(grid: EisenhowerGrid): string {
   return lines.join('\n')
 }
 
-function renderDecisionSummaryHtml(summary: DecisionEmailSummary): string {
-  const evidence = summary.evidence
-    .map((item) => `<li style="margin:0 0 6px;font-size:12px;line-height:1.45;color:#7a7874;">${escapeHtml(item)}</li>`)
-    .join('')
-
-  return `<div style="margin-top:28px;padding-top:24px;border-top:1px solid #e6e4e0;">
-    <p style="margin:0 0 8px;font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#7a7874;">Decision Engine</p>
-    <h2 style="margin:0 0 8px;font-size:18px;font-weight:500;color:#1a1a1a;">${escapeHtml(summary.title)}</h2>
-    <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:#2a2a2a;">${escapeHtml(summary.body)}</p>
-    <ul style="margin:0;padding-left:18px;">${evidence}</ul>
-  </div>`
-}
-
-function renderDecisionSummaryText(summary: DecisionEmailSummary): string {
-  const evidence = summary.evidence.map((item) => `  - ${item}`).join('\n')
-  return `\n\n-- Decision Engine --\n${summary.title}\n${summary.body}\n${evidence}`
-}
-
 // ─── Email body rendering ─────────────────────────────────────────────────────
 
-function renderEmailHtml(
-  winsDateISO: string,
-  wins: PersistedWin[],
-  eisenhowerGrid?: EisenhowerGrid,
-  decisionSummary?: DecisionEmailSummary,
-): string {
+function renderEmailHtml(winsDateISO: string, wins: PersistedWin[], eisenhowerGrid?: EisenhowerGrid): string {
   const humanDate = formatHumanDate(winsDateISO)
   const blocks = wins
     .map(
@@ -213,19 +182,13 @@ function renderEmailHtml(
       <h1 style="margin:0 0 24px;font-size:28px;font-weight:500;color:#1a1a1a;">Look what you did.</h1>
       ${blocks}
       <p style="margin:24px 0 0;font-size:12px;color:#7a7874;">From GrowthOS. Open the app whenever you\u2019re ready.</p>
-      ${decisionSummary ? renderDecisionSummaryHtml(decisionSummary) : ''}
       ${eisenhowerGrid ? renderEisenhowerHtml(eisenhowerGrid) : ''}
     </div>
   </body>
 </html>`
 }
 
-function renderEmailText(
-  winsDateISO: string,
-  wins: PersistedWin[],
-  eisenhowerGrid?: EisenhowerGrid,
-  decisionSummary?: DecisionEmailSummary,
-): string {
+function renderEmailText(winsDateISO: string, wins: PersistedWin[], eisenhowerGrid?: EisenhowerGrid): string {
   const humanDate = formatHumanDate(winsDateISO)
   const winText = wins
     .map(
@@ -237,8 +200,7 @@ function renderEmailText(
     )
     .join('\n\n')
   const goalsText = eisenhowerGrid ? renderEisenhowerText(eisenhowerGrid) : ''
-  const decisionText = decisionSummary ? renderDecisionSummaryText(decisionSummary) : ''
-  return `Yesterday — ${humanDate}\n\nLook what you did.\n\n${winText}\n\nFrom GrowthOS.${decisionText}${goalsText}`
+  return `Yesterday — ${humanDate}\n\nLook what you did.\n\n${winText}\n\nFrom GrowthOS.${goalsText}`
 }
 
 function formatHumanDate(isoDate: string): string {
@@ -282,8 +244,8 @@ export async function scheduleMorningEmail(
     from,
     to: input.to,
     subject,
-    html: renderEmailHtml(input.winsDateISO, input.wins, input.eisenhowerGrid, input.decisionSummary),
-    text: renderEmailText(input.winsDateISO, input.wins, input.eisenhowerGrid, input.decisionSummary),
+    html: renderEmailHtml(input.winsDateISO, input.wins, input.eisenhowerGrid),
+    text: renderEmailText(input.winsDateISO, input.wins, input.eisenhowerGrid),
   })
 
   if (response.error) {

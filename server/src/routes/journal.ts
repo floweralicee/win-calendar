@@ -12,7 +12,6 @@ import { scheduleMorningEmail } from '../resend.ts'
 import { readGoals } from '../goals-store.ts'
 import { computeEisenhowerGrid } from '../eisenhower.ts'
 import { parseTimelineMarkdown } from '../timeline-parser.ts'
-import { buildDecision, type DashboardDecision } from '../decision-engine.ts'
 
 const journal = new Hono()
 
@@ -84,14 +83,12 @@ journal.post('/api/journal', async (c) => {
 
   // Compute Eisenhower grid if goals exist — non-fatal if it fails.
   let eisenhowerGrid = undefined
-  let decisionSummary: DashboardDecision['priorityCard'] | undefined
   try {
     const userGoals = await readGoals()
     if (userGoals.some((g) => g.status === 'active')) {
       const timelineSource = await readTimeline(config.obsidianPath)
       const allWins = parseTimelineMarkdown(timelineSource)
       eisenhowerGrid = computeEisenhowerGrid(userGoals, allWins)
-      decisionSummary = buildDecision(userGoals, allWins).priorityCard
     }
   } catch (err) {
     console.warn('[journal] Eisenhower computation failed (non-fatal):', err)
@@ -104,7 +101,6 @@ journal.post('/api/journal', async (c) => {
       winsDateISO: dateISO,
       wins: persisted,
       eisenhowerGrid,
-      decisionSummary,
     })
     scheduledEmailId = result.emailId
   } catch (error: unknown) {

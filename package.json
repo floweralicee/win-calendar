@@ -8,10 +8,8 @@
     "dev:web": "vite",
     "dev:server": "tsx watch server/src/index.ts",
     "build": "tsc -b && vite build",
-    "test": "vitest",
-    "test:run": "vitest run",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p server/tsconfig.json",
+    "typecheck": "tsc -b --noEmit",
     "desktop": "cd desktop && npm install && npm run start",
     "desktop:dev": "cd desktop && npm install && npm run dev"
   },
