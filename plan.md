@@ -1,6 +1,6 @@
 # GrowthOS — Product Roadmap
 > Living document. Updated as stages complete. Agents must read this before touching any code.
-> Last updated: 2026-05-05
+> Last updated: 2026-05-06
 
 ---
 
@@ -106,6 +106,102 @@ Fifth view toggle: **Goals**. Full CRUD for goals (area / deadline / milestone /
 *Status: DONE*
 
 Sixth view toggle: **Orbit**. SVG spiral of all wins in chronological order (centre = earliest). Hairline connecting path. Area-colored dots. Hover = date + title. Click opens `WinDetail`.
+
+---
+
+### 🔲 Stage 12 — Animal Crossing PersonalOS (Island View)
+*Status: IN PROGRESS — branch `animal-crossing`*
+*No prerequisites — self-contained view, does not depend on Stage 10 or 11*
+
+**What it is:**
+
+A game-like personal OS dashboard. Animal Crossing × Catppuccin Latte × Apple Cupertino. Accessible from a new **Island** toggle in the view header. Does not replace any existing view.
+
+**Three tabs inside the Island view:**
+
+**Tab 1 — Island (game layer)**
+- Header: name, streak badge, token count
+- Today's Quest card (from `_game-state.md` → active quest field). Isabelle icon. [Mark Done] button.
+- Weekly Challenge card (from game state → weekly quest). Nook Miles icon. Progress bar.
+- Sprint Arc card (from game state → active arc). Star Fragment icon. Progress bar + days left.
+- Villagers section: each named pattern with status (active / quiet / dormant) and last-seen. Tom Nook icon for the section header.
+- Token Unlock progress bar: current tokens / next unlock threshold. Leaf icon.
+- Season Goals: one row per goal with progress bar. Bell Coin (finance), Giftbox (social), Leaf (growth), Peach (health), Recipe Card (career).
+
+**Tab 2 — Profile (who you are)**
+- Name + tagline (from profile file)
+- Operating System card: how you operate, peak window, fuel (from `os.md` or `alice_os_v4.md`)
+- Intelligence card: key cognitive patterns (from `intelligence.md` or `intelligence_profile.md`)
+- Season Goals repeated here with progress bars
+
+**Tab 3 — Wins**
+- Reuses the existing month calendar (`<Calendar>` component) unchanged
+- No new wins logic — pure reuse
+
+**Data sources:**
+- Game state: `GET /api/island/game-state` → parses `<obsidianPath>/06_WINS/_game-state.md`
+- Profile: `GET /api/island/profile` → reads `alice_os_v4.md` + `intelligence_profile.md` from vault (or generic profile files if present)
+- Goals: reuses `GET /api/goals` (already exists)
+- Wins: reuses `GET /api/wins` (already exists)
+
+**Design tokens (add to `src/styles.css`, prefixed `--ctp-*`, do not touch existing tokens):**
+```css
+--ctp-base:      #eff1f5;
+--ctp-mantle:    #e6e9ef;
+--ctp-crust:     #dce0e8;
+--ctp-surface0:  #ccd0da;
+--ctp-surface1:  #bcc0cc;
+--ctp-text:      #4c4f69;
+--ctp-subtext:   #6c6f85;
+--ctp-overlay:   #7c7f93;
+--ctp-lavender:  #7287fd;
+--ctp-blue:      #1e66f5;
+--ctp-sapphire:  #209fb5;
+--ctp-sky:       #04a5e5;
+--ctp-teal:      #179299;
+--ctp-green:     #40a02b;
+--ctp-yellow:    #df8e1d;
+--ctp-peach:     #fe640b;
+--ctp-maroon:    #e64553;
+--ctp-red:       #d20f39;
+--ctp-pink:      #ea76cb;
+--ctp-mauve:     #8839ef;
+--ctp-rosewater: #dc8a78;
+--ctp-flamingo:  #dd7878;
+--island-radius: 16px;
+--island-gap:    16px;
+```
+
+**Icon mapping (`src/assets/ac-icons/`):**
+| File | Used for |
+|------|----------|
+| `isabelle.png` | Daily quest card header |
+| `leaf.png` | Clarity Tokens count + growth-area wins |
+| `star-fragment.png` | Sprint arc card + big milestones |
+| `tom-nook.png` | Villagers section header |
+| `bell-coin.png` | Finance-area wins + goals |
+| `nook-miles.png` | Weekly challenge card header |
+| `recipe-card.png` | Career/skill wins + goals |
+| `giftbox.png` | Social/love wins + goals |
+| `peach.png` | Health wins + goals |
+
+**New files:**
+- `src/IslandView.tsx` (~300 lines) — three-tab layout, all three panels
+- `server/src/game-state-parser.ts` (~60 lines) — parses `_game-state.md` into typed `GameState`
+- `server/src/routes/island.ts` (~80 lines) — `GET /api/island/game-state` + `GET /api/island/profile`
+
+**No new npm dependencies.**
+
+**Definition of done:**
+- [ ] Island toggle added to view header
+- [ ] Tab 1: Today's Quest, Weekly Challenge, Sprint Arc, Villagers, Token progress, Season Goals all render from real data
+- [ ] Tab 2: Profile OS card + Intelligence card + Season Goals render from vault files
+- [ ] Tab 3: Month calendar renders correctly (reuse, no regressions)
+- [ ] Catppuccin Latte tokens applied only inside Island view, no bleed to existing views
+- [ ] All 9 AC icons used in correct semantic positions
+- [ ] No new npm dependencies
+- [ ] No regressions on existing views
+- [ ] `_game-state.md` parsed correctly (graceful empty state when file missing)
 
 ---
 
@@ -284,8 +380,13 @@ Stage 1  ✅
                            └─ Stage 7  ✅
                                 └─ Stage 8  ✅
                                      └─ Stage 9  ✅
-                                          └─ Stage 10  🔲  ← START HERE
+                                          └─ Stage 10  🔲
                                                └─ Stage 11  🔲
+
+Stage 12  🚧  (branch: animal-crossing)
+  └─ No prerequisite — self-contained
+  └─ Reuses: GET /api/wins, GET /api/goals (Stages 2 + 8)
+  └─ New: GET /api/island/game-state, GET /api/island/profile
 ```
 
 ---
