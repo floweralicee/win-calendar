@@ -9,6 +9,7 @@ import onboarding from './routes/onboarding.ts'
 import journal from './routes/journal.ts'
 import wins from './routes/wins.ts'
 import goals from './routes/goals.ts'
+import { island } from './routes/island.ts'
 
 // Load operator-owned secrets from `server/.env` before any route handler runs.
 // Keys live there, never in the codebase or per-user config. Route modules only
@@ -31,6 +32,7 @@ app.route('/', onboarding)
 app.route('/', journal)
 app.route('/', wins)
 app.route('/', goals)
+app.route('/api/island', island)
 
 const port = Number(process.env.PORT ?? 8787)
 

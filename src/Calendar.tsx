@@ -5,8 +5,9 @@ import { HeatmapView } from './HeatmapView'
 import { ListView } from './ListView'
 import { GoalsView } from './GoalsView'
 import { OrbitView } from './OrbitView'
+import { IslandView } from './IslandView'
 
-type ActiveView = 'month' | 'bloom' | 'year' | 'list' | 'goals' | 'orbit'
+type ActiveView = 'month' | 'bloom' | 'year' | 'list' | 'goals' | 'orbit' | 'island'
 
 /** Large heading + one-line context for non-month views (month uses the grid header instead). */
 const ALT_VIEW_HEADER: Record<
@@ -33,6 +34,10 @@ const ALT_VIEW_HEADER: Record<
     heading: 'ORBIT',
     tagline: 'Every win in time — spiral from your first step to now',
   },
+  island: {
+    heading: 'ISLAND',
+    tagline: 'Your personal OS — quests, patterns, profile, and growth',
+  },
 }
 
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const
@@ -58,6 +63,7 @@ type CalendarProps = {
   winsByDate: WinsByDate
   onSelectWin: (win: Win) => void
   onDeleteWin: (win: Win) => void
+  onUpdateWinAreas?: (win: Win, areas: LifeArea[]) => void
   onPreviousMonth: () => void
   onNextMonth: () => void
   onJumpToToday: () => void
@@ -99,6 +105,7 @@ export function Calendar({
   winsByDate,
   onSelectWin,
   onDeleteWin,
+  onUpdateWinAreas,
   onPreviousMonth,
   onNextMonth,
   onJumpToToday,
@@ -158,8 +165,8 @@ export function Calendar({
               </button>
             </div>
           </div>
-        ) : (
-          /* Bloom / Year / List / Goals: app bar with view title (no month chrome) */
+        ) : activeView === 'island' ? null : (
+          /* Bloom / Year / List / Goals / Orbit: app bar with view title (no month chrome) */
           <div className="calendar-app-bar">
             <div className="calendar-app-bar-main">
               <div className="calendar-app-bar-titles">
@@ -235,6 +242,14 @@ export function Calendar({
           >
             Orbit
           </button>
+          <button
+            type="button"
+            className="calendar-view-toggle-button"
+            aria-pressed={activeView === 'island'}
+            onClick={() => onSetView('island')}
+          >
+            🏙️ Island
+          </button>
         </div>
       </header>
 
@@ -243,8 +258,22 @@ export function Calendar({
       {activeView === 'list' && <ListView winsByDate={winsByDate} onSelectWin={onSelectWin} />}
       {activeView === 'goals' && <GoalsView />}
       {activeView === 'orbit' && <OrbitView winsByDate={winsByDate} onSelectWin={onSelectWin} />}
+      {activeView === 'island' && (
+        <IslandView
+          winsByDate={winsByDate}
+          year={year}
+          month={month}
+          onSelectWin={onSelectWin}
+          onDeleteWin={onDeleteWin}
+          onUpdateWinAreas={onUpdateWinAreas ?? (() => {})}
+          onPreviousMonth={onPreviousMonth}
+          onNextMonth={onNextMonth}
+          onJumpToToday={onJumpToToday}
+          onOpenJournal={onOpenJournal}
+        />
+      )}
 
-      <div className="calendar-grid" role="grid" style={{ display: activeView !== 'month' ? 'none' : undefined }}>
+      <div className="calendar-grid" role="grid" style={{ display: (activeView !== 'month') ? 'none' : undefined }}>
         <div className="calendar-weekday-row" role="row">
           {WEEKDAY_LABELS.map((label) => (
             <div key={label} className="calendar-weekday" role="columnheader">
