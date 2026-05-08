@@ -25,10 +25,9 @@ body {
 }
 
 /* -------------------------------------------------------------------------
-   Pet root — stacks speech bubble above the sprite.
-   The window grows upward when the bubble opens, so the sprite is always
-   anchored at the bottom of the window. Using column-reverse + justify-end
-   keeps the sprite flush to the bottom edge regardless of window height.
+   Pet root — sprite sits in normal flow at the bottom; the speech bubble is
+   position:absolute so it overlaps the character (no tall flex gap between
+   bubble and art). The window still grows upward when the bubble opens.
    ------------------------------------------------------------------------- */
 
 .pet-root {
@@ -47,20 +46,25 @@ body {
    Speech bubble
    ------------------------------------------------------------------------- */
 
+/* Distance from pet-root bottom to the bubble’s bottom edge — lower value = bubble sits nearer the character and overlaps more. */
+
 .speech-bubble {
-  position: relative;
+  position: absolute;
+  left: 50%;
+  bottom: var(--hana-bubble-bottom-offset, 48px);
+  transform: translateX(-50%);
+  z-index: 2;
   background: #ffffff;
   border: 1.5px solid #e6e4e0;
   border-radius: 10px;
-  /* Fill the full window width so nothing clips */
   width: calc(100% - 4px);
-  /* Tight to the pet — tail bridges the last few pixels */
-  margin: 0 2px 0;
+  margin: 0;
   padding: 28px 10px 10px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   display: flex;
   flex-direction: column;
   gap: 6px;
+  pointer-events: auto;
 }
 
 /* Close button — top-right corner of the bubble */

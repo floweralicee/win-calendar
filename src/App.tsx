@@ -146,7 +146,7 @@ export function App() {
   }
 
   return (
-    <>
+    <div className={activeView === 'island' ? 'app-shell app-shell--island' : 'app-shell'}>
       <Calendar
         year={visibleYear}
         month={visibleMonth}
@@ -173,6 +173,6 @@ export function App() {
           onSubmitted={reload}
         />
       )}
-    </>
+    </div>
   )
 }

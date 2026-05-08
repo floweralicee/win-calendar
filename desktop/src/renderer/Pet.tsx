@@ -392,6 +392,32 @@ export function Pet() {
 
   return (
     <div className="pet-root">
+      <div className="pet-sprite-hit-wrap">
+        <div
+          className={`pet-sprite pet-sprite-${petState}`}
+          onMouseDown={handleMouseDown}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onDoubleClick={handleDoubleClick}
+          onClick={handlePetClick}
+          role="img"
+          aria-label={`Hana the desktop pet — ${petState} state`}
+        >
+          <img
+            src={resolvePetSpriteUrl(
+              petState,
+              activeIdleUsesWinSprite,
+              journalOverlay,
+              processingShowsSecondNum,
+              showWinCelebrateSpriteInEat,
+            )}
+            alt=""
+            className="pet-image"
+            draggable={false}
+          />
+        </div>
+      </div>
+
       {showBubble && (
         <div className="speech-bubble">
           <button
@@ -451,32 +477,6 @@ export function Pet() {
           <div className="speech-bubble-tail" />
         </div>
       )}
-
-      <div className="pet-sprite-hit-wrap">
-        <div
-          className={`pet-sprite pet-sprite-${petState}`}
-          onMouseDown={handleMouseDown}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onDoubleClick={handleDoubleClick}
-          onClick={handlePetClick}
-          role="img"
-          aria-label={`Hana the desktop pet — ${petState} state`}
-        >
-          <img
-            src={resolvePetSpriteUrl(
-              petState,
-              activeIdleUsesWinSprite,
-              journalOverlay,
-              processingShowsSecondNum,
-              showWinCelebrateSpriteInEat,
-            )}
-            alt=""
-            className="pet-image"
-            draggable={false}
-          />
-        </div>
-      </div>
     </div>
   )
 }

@@ -1,17 +1,17 @@
 import type { Win, WinsByDate, LifeArea } from './wins'
-import { LIFE_AREAS } from './wins'
 import { BloomView } from './BloomView'
 import { HeatmapView } from './HeatmapView'
 import { ListView } from './ListView'
 import { GoalsView } from './GoalsView'
 import { OrbitView } from './OrbitView'
 import { IslandView } from './IslandView'
+import { MonthGrid } from './MonthGrid'
 
 type ActiveView = 'month' | 'bloom' | 'year' | 'list' | 'goals' | 'orbit' | 'island'
 
 /** Large heading + one-line context for non-month views (month uses the grid header instead). */
 const ALT_VIEW_HEADER: Record<
-  Exclude<ActiveView, 'month'>,
+  Exclude<ActiveView, 'month' | 'island'>,
   { heading: string; tagline: string }
 > = {
   bloom: {
@@ -34,13 +34,7 @@ const ALT_VIEW_HEADER: Record<
     heading: 'ORBIT',
     tagline: 'Every win in time — spiral from your first step to now',
   },
-  island: {
-    heading: 'ISLAND',
-    tagline: 'Your personal OS — quests, patterns, profile, and growth',
-  },
 }
-
-const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const
 
 const MONTH_LABELS = [
   'JANUARY',
@@ -72,33 +66,6 @@ type CalendarProps = {
   onSetView: (view: ActiveView) => void
 }
 
-type CalendarCell =
-  | { kind: 'day'; day: number; isoDate: string }
-  | { kind: 'empty' }
-
-function toIsoDate(year: number, monthIndex: number, day: number): string {
-  const mm = String(monthIndex + 1).padStart(2, '0')
-  const dd = String(day).padStart(2, '0')
-  return `${year}-${mm}-${dd}`
-}
-
-function buildMonthGrid(year: number, month: number): CalendarCell[] {
-  const firstOfMonth = new Date(year, month, 1)
-  const jsWeekday = firstOfMonth.getDay()
-  const mondayOffset = (jsWeekday + 6) % 7
-
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-
-  const cells: CalendarCell[] = []
-  for (let i = 0; i < mondayOffset; i++) cells.push({ kind: 'empty' })
-  for (let day = 1; day <= daysInMonth; day++) {
-    cells.push({ kind: 'day', day, isoDate: toIsoDate(year, month, day) })
-  }
-  while (cells.length % 7 !== 0) cells.push({ kind: 'empty' })
-
-  return cells
-}
-
 export function Calendar({
   year,
   month,
@@ -113,13 +80,30 @@ export function Calendar({
   activeView,
   onSetView,
 }: CalendarProps) {
-  const cells = buildMonthGrid(year, month)
+  if (activeView === 'island') {
+    return (
+      <div className="calendar calendar--island-only">
+        <IslandView
+          winsByDate={winsByDate}
+          year={year}
+          month={month}
+          onSelectWin={onSelectWin}
+          onDeleteWin={onDeleteWin}
+          onUpdateWinAreas={onUpdateWinAreas ?? (() => {})}
+          onPreviousMonth={onPreviousMonth}
+          onNextMonth={onNextMonth}
+          onJumpToToday={onJumpToToday}
+          onOpenJournal={onOpenJournal}
+          onExitIsland={() => onSetView('month')}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="calendar">
       <header className="calendar-header">
         {activeView === 'month' ? (
-          /* Month view only: printed-calendar month rail + year + journal */
           <div className="calendar-header-top">
             <div className="calendar-heading-group">
               <button
@@ -165,8 +149,7 @@ export function Calendar({
               </button>
             </div>
           </div>
-        ) : activeView === 'island' ? null : (
-          /* Bloom / Year / List / Goals / Orbit: app bar with view title (no month chrome) */
+        ) : (
           <div className="calendar-app-bar">
             <div className="calendar-app-bar-main">
               <div className="calendar-app-bar-titles">
@@ -192,7 +175,6 @@ export function Calendar({
           </div>
         )}
 
-        {/* View toggle: own row so it's always full-width and easy to tap */}
         <div className="calendar-view-toggle" role="group" aria-label="View">
           <button
             type="button"
@@ -245,10 +227,10 @@ export function Calendar({
           <button
             type="button"
             className="calendar-view-toggle-button"
-            aria-pressed={activeView === 'island'}
+            aria-pressed={false}
             onClick={() => onSetView('island')}
           >
-            🏙️ Island
+            Island
           </button>
         </div>
       </header>
@@ -258,99 +240,16 @@ export function Calendar({
       {activeView === 'list' && <ListView winsByDate={winsByDate} onSelectWin={onSelectWin} />}
       {activeView === 'goals' && <GoalsView />}
       {activeView === 'orbit' && <OrbitView winsByDate={winsByDate} onSelectWin={onSelectWin} />}
-      {activeView === 'island' && (
-        <IslandView
-          winsByDate={winsByDate}
+
+      {activeView === 'month' && (
+        <MonthGrid
           year={year}
           month={month}
+          winsByDate={winsByDate}
           onSelectWin={onSelectWin}
           onDeleteWin={onDeleteWin}
-          onUpdateWinAreas={onUpdateWinAreas ?? (() => {})}
-          onPreviousMonth={onPreviousMonth}
-          onNextMonth={onNextMonth}
-          onJumpToToday={onJumpToToday}
-          onOpenJournal={onOpenJournal}
         />
       )}
-
-      <div className="calendar-grid" role="grid" style={{ display: (activeView !== 'month') ? 'none' : undefined }}>
-        <div className="calendar-weekday-row" role="row">
-          {WEEKDAY_LABELS.map((label) => (
-            <div key={label} className="calendar-weekday" role="columnheader">
-              {label}
-            </div>
-          ))}
-        </div>
-
-        <div className="calendar-cells">
-          {cells.map((cell, index) => {
-            if (cell.kind === 'empty') {
-              return (
-                <div
-                  key={index}
-                  className="calendar-cell calendar-cell-empty"
-                  role="gridcell"
-                  aria-hidden="true"
-                >
-                  <span className="calendar-empty-dot" />
-                </div>
-              )
-            }
-
-            const winsForDay = winsByDate[cell.isoDate] ?? []
-
-            // Collect the unique area values present this day, in canonical
-            // order (finance → social → growth → health → career), excluding
-            // unclassified wins and wins with no area tag.
-            const areasThisDay: LifeArea[] = LIFE_AREAS.filter(
-              (area) =>
-                area !== 'unclassified' &&
-                winsForDay.some((win) => win.areas?.includes(area)),
-            )
-
-            return (
-              <div key={index} className="calendar-cell" role="gridcell">
-                <span className="calendar-day-number">{cell.day}</span>
-                {areasThisDay.length > 0 && (
-                  <div className="calendar-area-dots" aria-hidden="true">
-                    {areasThisDay.map((area) => (
-                      <span key={area} className="calendar-area-dot" data-area={area} />
-                    ))}
-                  </div>
-                )}
-                {winsForDay.length > 0 && (
-                  <ul className="calendar-win-list">
-                    {winsForDay.map((win) => (
-                      <li key={win.id} className="calendar-win-item">
-                        <button
-                          type="button"
-                          className={
-                            'calendar-win-title' +
-                            (win.spansRange ? ' calendar-win-title-ranged' : '')
-                          }
-                          onClick={() => onSelectWin(win)}
-                          title={win.title}
-                        >
-                          {win.title}
-                        </button>
-                        <button
-                          type="button"
-                          className="calendar-win-delete"
-                          onClick={(e) => { e.stopPropagation(); onDeleteWin(win) }}
-                          aria-label={`Delete win: ${win.title}`}
-                          title="Delete this win"
-                        >
-                          🗑
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
     </div>
   )
 }
