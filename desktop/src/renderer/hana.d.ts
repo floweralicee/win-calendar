@@ -4,6 +4,10 @@ export type JournalSubmitResult =
   | { ok: true; winsCount: number; message: string }
   | { ok: false; error: string }
 
+export type ReframeResult =
+  | { ok: true; reframed: string; durationMins: number }
+  | { ok: false; error: string }
+
 declare global {
   interface Window {
     hana: {
@@ -19,6 +23,11 @@ declare global {
        * or shrink it back down to sprite-only height (false).
        */
       setBubbleVisible: (visible: boolean) => void
+      /**
+       * Send a raw output-based task to the server and get back a simple
+       * input-based reframe + suggested duration in minutes.
+       */
+      reframeTask: (raw: string) => Promise<ReframeResult>
     }
   }
 }

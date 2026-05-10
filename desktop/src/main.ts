@@ -193,6 +193,24 @@ ipcMain.on('pet:setBubbleVisible', (_event, { visible }: { visible: boolean }) =
   }
 })
 
+function friendlyReframeFetchError(error: unknown): string {
+  if (!(error instanceof Error)) return 'Network error'
+  const cause = (error as Error & { cause?: { code?: string } }).cause
+  const code = cause?.code ?? ''
+  const isUnreachable =
+    code === 'ECONNREFUSED' ||
+    code === 'ENOTFOUND' ||
+    error.message.toLowerCase().includes('fetch failed') ||
+    error.message.toLowerCase().includes('econnrefused')
+  if (isUnreachable) {
+    return (
+      "Can't reach the Win Calendar server (127.0.0.1:8787). " +
+      'Open a terminal in the win-calendar folder and run: npm run dev'
+    )
+  }
+  return error.message
+}
+
 function friendlyJournalFetchError(error: unknown): string {
   if (!(error instanceof Error)) return 'Network error'
 
@@ -215,6 +233,32 @@ function friendlyJournalFetchError(error: unknown): string {
 
   return error.message
 }
+
+// Reframe a raw output-based task into an input-based one via the local Hono server.
+ipcMain.handle(
+  'task:reframe',
+  async (_event, raw: string): Promise<{ ok: true; reframed: string; durationMins: number } | { ok: false; error: string }> => {
+    try {
+      const response = await fetch(`${HONO_BASE_URL}/api/reframe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task: raw }),
+      })
+      let json: { reframed?: string; durationMins?: number; error?: string }
+      try {
+        json = (await response.json()) as typeof json
+      } catch {
+        return { ok: false, error: `Server returned ${response.status} with a non-JSON body.` }
+      }
+      if (!response.ok || typeof json.reframed !== 'string' || typeof json.durationMins !== 'number') {
+        return { ok: false, error: json.error ?? `Server error ${response.status}` }
+      }
+      return { ok: true, reframed: json.reframed, durationMins: json.durationMins }
+    } catch (error: unknown) {
+      return { ok: false, error: friendlyReframeFetchError(error) }
+    }
+  },
+)
 
 // Forward journal submission to the local Hono server from Node so we avoid
 // renderer CORS restrictions.

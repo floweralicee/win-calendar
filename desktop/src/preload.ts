@@ -4,6 +4,10 @@ export type JournalSubmitResult =
   | { ok: true; winsCount: number; message: string }
   | { ok: false; error: string }
 
+export type ReframeResult =
+  | { ok: true; reframed: string; durationMins: number }
+  | { ok: false; error: string }
+
 // Expose a narrow, typed API to the renderer. The renderer has no access to
 // Node or Electron APIs directly (contextIsolation: true, nodeIntegration: false).
 contextBridge.exposeInMainWorld('hana', {
@@ -30,4 +34,11 @@ contextBridge.exposeInMainWorld('hana', {
    */
   setBubbleVisible: (visible: boolean): void =>
     ipcRenderer.send('pet:setBubbleVisible', { visible }),
+
+  /**
+   * Send a raw output-based task string to the server and get back a
+   * simple input-based reframe plus the suggested duration in minutes.
+   */
+  reframeTask: (raw: string): Promise<ReframeResult> =>
+    ipcRenderer.invoke('task:reframe', raw) as Promise<ReframeResult>,
 })
