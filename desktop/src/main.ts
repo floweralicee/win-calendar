@@ -19,7 +19,7 @@ if (!app.requestSingleInstanceLock()) {
 /** Logical pet square (window height in sprite-only mode; matches renderer `.pet-sprite`). */
 const PET_SIZE = 256
 const BUBBLE_WIDTH = 300
-const BUBBLE_HEIGHT = 220
+const BUBBLE_HEIGHT = 160
 const HONO_BASE_URL = 'http://127.0.0.1:8787'
 const TOGGLE_SHORTCUT = process.platform === 'darwin' ? 'Command+Shift+H' : 'Control+Shift+H'
 
