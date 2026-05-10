@@ -48,13 +48,15 @@ body {
    ------------------------------------------------------------------------- */
 
 .speech-bubble {
-  position: relative;
+  position: absolute;
+  /* Sit just above the pet's head — pet sprite is 256px tall, head is roughly
+     in the top third, so bottom=190px puts the bubble tail near the head. */
+  bottom: 190px;
+  left: 2px;
+  right: 2px;
   background: #ffffff;
   border: 1.5px solid #e6e4e0;
   border-radius: 10px;
-  /* Fill the full window width so nothing clips */
-  width: calc(100% - 4px);
-  margin: 0 2px 0;
   padding: 28px 10px 10px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   display: flex;
