@@ -240,6 +240,93 @@ body {
 }
 
 /* -------------------------------------------------------------------------
+   Focus Mode — challenge card, Accept/Nah buttons, countdown timer
+   ------------------------------------------------------------------------- */
+
+/* The reframed task shown in the confirm step. */
+.focus-challenge-card {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: #1a1a1a;
+  text-align: center;
+  padding: 6px 4px 2px;
+}
+
+/* Accept / Nah button row */
+.accept-nah-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.btn-accept {
+  background: #1a1a1a;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+  width: 100%;
+}
+
+.btn-accept:hover {
+  background: #333333;
+}
+
+.btn-nah {
+  background: none;
+  border: 1px solid #d9d6d2;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  color: #6a6864;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+  width: 100%;
+}
+
+.btn-nah:hover {
+  background: #f0eeea;
+  color: #1a1a1a;
+}
+
+/* Big blue monospace countdown */
+.focus-timer {
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 36px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: #256dad;
+  text-align: center;
+  line-height: 1.1;
+  padding: 8px 0 2px;
+}
+
+.focus-timer-label {
+  font-size: 11px;
+  color: #9a9896;
+  text-align: center;
+  padding-bottom: 4px;
+}
+
+/* Debrief step — prompt label above the textarea */
+.focus-debrief-prompt {
+  font-size: 12px;
+  font-weight: 500;
+  color: #1a1a1a;
+  line-height: 1.4;
+  text-align: center;
+  padding: 2px 0;
+}
+
+/* -------------------------------------------------------------------------
    Pet sprite
    Window / layout uses 256px; hit-testing uses a centered 128px square so
    transparent SVG padding does not feel like a huge draggable border.

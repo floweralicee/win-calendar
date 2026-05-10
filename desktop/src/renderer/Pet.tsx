@@ -16,12 +16,12 @@ import burpSoundUrl from '@hana-icon/new/burp1.mp3?url'
 // Types
 // ---------------------------------------------------------------------------
 
-// States map to the OC Desktop Pet skill's four roles:
-//   active  = idle/default  (active.svg == new/active1.svg; after a saved win → active2)
-//   hover   = pointer over pet (same art as active — eat.svg only after double-click)
-//   eat     = textbox open  (eat.svg)
-//   sleep   = long idle     (sleep.svg)
-//   touch   = dragging      (new/drag.svg)
+// Pet sprite states (unchanged from Phase 4):
+//   active  = idle/default  (active.svg; after a saved win → active2)
+//   hover   = pointer over pet
+//   eat     = bubble open (eat.svg)
+//   sleep   = long idle (sleep.svg)
+//   touch   = dragging (drag.svg)
 type PetState = 'active' | 'hover' | 'eat' | 'sleep' | 'touch'
 
 type SubmitStatus =
@@ -36,6 +36,19 @@ type JournalSpriteOverlay =
   | { kind: 'processing' }
   | { kind: 'burp'; frame: 0 | 1 | 2 }
 
+/**
+ * Focus Mode flow steps. The bubble renders different content at each step.
+ * 'off' means the user is in the classic journal mode (existing behaviour).
+ *
+ *   off       → classic "What's your win?" journal bubble
+ *   input     → "What's on your mind today?" — user types a task
+ *   reframing → Claude is rewriting the task (num1/num2 flicker)
+ *   confirm   → show reframed task + Accept / Nah buttons
+ *   timer     → countdown running, "you're doing it."
+ *   debrief   → "What did you accomplish in X mins?" textarea
+ */
+type FocusStep = 'off' | 'input' | 'reframing' | 'confirm' | 'timer' | 'debrief'
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -46,6 +59,10 @@ const PROCESSING_NUM_FLIP_MS = 350
 const BURP_FRAME_MS = 280
 
 const BURP_FRAME_URLS = [burp1Url, burp2Url, burp3Url] as const
+
+// ---------------------------------------------------------------------------
+// Pure helpers
+// ---------------------------------------------------------------------------
 
 function spriteUrlForPetState(
   petState: PetState,
@@ -69,7 +86,6 @@ function resolvePetSpriteUrl(
   activeIdleUsesWinSprite: boolean,
   journalOverlay: JournalSpriteOverlay,
   processingShowsSecondNum: boolean,
-  /** After burp, show active2 in the eat bubble until dismiss (not plain eat.svg). */
   showWinCelebrateSpriteInEat: boolean,
 ): string {
   if (journalOverlay.kind === 'processing') {
@@ -87,7 +103,7 @@ function resolvePetSpriteUrl(
 function playBurpSoundEffect(soundUrl: string): void {
   const audio = new Audio(soundUrl)
   void audio.play().catch(() => {
-    // Autoplay or decode failures are ignored; burp animation still runs.
+    // Autoplay or decode failures are ignored — animation still plays.
   })
 }
 
@@ -99,44 +115,63 @@ function todayISO(): string {
   return `${yyyy}-${mm}-${dd}`
 }
 
+/** Format seconds as MM:SS for the countdown display. */
+function formatCountdown(totalSeconds: number): string {
+  const mins = Math.floor(totalSeconds / 60)
+  const secs = totalSeconds % 60
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function Pet() {
+  // --- existing pet state ---
   const [petState, setPetState] = useState<PetState>('active')
-  /** After at least one win is saved in this session, idle uses active2.svg. */
   const [activeIdleUsesWinSprite, setActiveIdleUsesWinSprite] = useState(false)
   const [journalText, setJournalText] = useState('')
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>({ kind: 'idle' })
   const [journalOverlay, setJournalOverlay] = useState<JournalSpriteOverlay>({ kind: 'none' })
-  /** Toggles num1/num2 while `journalOverlay` is processing. */
   const [processingShowsSecondNum, setProcessingShowsSecondNum] = useState(false)
-  /** True from end of burp until bubble closes — pet shows active2 while success text is visible. */
   const [showWinCelebrateSpriteInEat, setShowWinCelebrateSpriteInEat] = useState(false)
 
+  // --- Focus Mode state ---
+  const [focusStep, setFocusStep] = useState<FocusStep>('off')
+  /** The raw task the user typed in the input step. Preserved for "Nah" loops. */
+  const [focusRawTask, setFocusRawTask] = useState('')
+  /** The reframed task returned by Claude. */
+  const [focusReframedTask, setFocusReframedTask] = useState('')
+  /** Duration in minutes returned by Claude (default 25). */
+  const [focusDurationMins, setFocusDurationMins] = useState(25)
+  /** Countdown in seconds — counts down from focusDurationMins * 60. */
+  const [focusSecondsLeft, setFocusSecondsLeft] = useState(0)
+  /** Error from the reframe API call, shown in confirm step if it fails. */
+  const [focusReframeError, setFocusReframeError] = useState('')
+  /** Text user types in debrief step. */
+  const [focusDebriefText, setFocusDebriefText] = useState('')
+
+  // --- refs ---
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const debriefTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const burpScheduleTimeoutIdsRef = useRef<number[]>([])
+  const focusCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Drag state in refs so mouse-move handler closure never goes stale.
+  // Drag refs — closures never go stale.
   const isDraggingRef = useRef(false)
-  // Last known screen position of the pointer — re-anchored each rAF tick.
   const lastScreenPosRef = useRef({ x: 0, y: 0 })
-  // Pending rAF handle so we only schedule one frame at a time.
   const rafHandleRef = useRef<number | null>(null)
-  // Accumulated delta between rAF flushes.
   const pendingDeltaRef = useRef({ dx: 0, dy: 0 })
 
   // -------------------------------------------------------------------------
-  // Sleep timer — reset on any user activity
+  // Sleep timer
   // -------------------------------------------------------------------------
 
   const resetSleepTimer = useCallback(() => {
     if (sleepTimerRef.current !== null) clearTimeout(sleepTimerRef.current)
     sleepTimerRef.current = setTimeout(() => {
       setPetState((current) => {
-        // Don't override eat or touch with sleep.
         if (current === 'eat' || current === 'touch') return current
         return 'sleep'
       })
@@ -171,15 +206,74 @@ export function Pet() {
   }, [journalOverlay.kind])
 
   // -------------------------------------------------------------------------
-  // Focus textarea when entering eat state
+  // Num1/num2 loop while focus is reframing (reuse same mechanic)
+  // -------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (focusStep !== 'reframing') return
+    setProcessingShowsSecondNum(false)
+    const intervalId = window.setInterval(() => {
+      setProcessingShowsSecondNum((previous) => !previous)
+    }, PROCESSING_NUM_FLIP_MS)
+    return () => clearInterval(intervalId)
+  }, [focusStep])
+
+  // -------------------------------------------------------------------------
+  // Bubble visibility + textarea focus — opens when entering eat state
   // -------------------------------------------------------------------------
 
   useEffect(() => {
     if (petState === 'eat') {
-      setTimeout(() => textareaRef.current?.focus(), 50)
       window.hana.setBubbleVisible(true)
+      // Focus the right textarea depending on which step we're in.
+      setTimeout(() => {
+        if (focusStep === 'off' || focusStep === 'input') {
+          textareaRef.current?.focus()
+        } else if (focusStep === 'debrief') {
+          debriefTextareaRef.current?.focus()
+        }
+      }, 50)
     }
-  }, [petState])
+  }, [petState, focusStep])
+
+  // Also focus debrief textarea when step transitions to 'debrief'.
+  useEffect(() => {
+    if (focusStep === 'debrief') {
+      setTimeout(() => debriefTextareaRef.current?.focus(), 50)
+    }
+  }, [focusStep])
+
+  // -------------------------------------------------------------------------
+  // Focus countdown timer
+  // -------------------------------------------------------------------------
+
+  const clearFocusCountdown = useCallback(() => {
+    if (focusCountdownIntervalRef.current !== null) {
+      clearInterval(focusCountdownIntervalRef.current)
+      focusCountdownIntervalRef.current = null
+    }
+  }, [])
+
+  function startFocusCountdown(durationMins: number): void {
+    clearFocusCountdown()
+    const totalSeconds = durationMins * 60
+    setFocusSecondsLeft(totalSeconds)
+    focusCountdownIntervalRef.current = setInterval(() => {
+      setFocusSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearFocusCountdown()
+          setFocusStep('debrief')
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }
+
+  // Cleanup countdown on unmount.
+  useEffect(() => {
+    return () => clearFocusCountdown()
+  }, [clearFocusCountdown])
 
   // -------------------------------------------------------------------------
   // Global mouse-move / mouse-up for dragging (rAF-batched)
@@ -197,13 +291,9 @@ export function Pet() {
 
     function handleMouseMove(event: MouseEvent) {
       if (!isDraggingRef.current) return
-
       const dx = event.screenX - lastScreenPosRef.current.x
       const dy = event.screenY - lastScreenPosRef.current.y
-      // Re-anchor immediately so each tick only sends what moved since last tick.
       lastScreenPosRef.current = { x: event.screenX, y: event.screenY }
-
-      // Accumulate and schedule one rAF flush.
       pendingDeltaRef.current.dx += dx
       pendingDeltaRef.current.dy += dy
       if (rafHandleRef.current === null) {
@@ -214,18 +304,15 @@ export function Pet() {
     function handleMouseUp() {
       if (!isDraggingRef.current) return
       isDraggingRef.current = false
-      // Cancel any pending frame.
       if (rafHandleRef.current !== null) {
         cancelAnimationFrame(rafHandleRef.current)
         rafHandleRef.current = null
-        // Flush any remaining delta synchronously.
         const { dx, dy } = pendingDeltaRef.current
         if (dx !== 0 || dy !== 0) {
           window.hana.moveBy(dx, dy)
           pendingDeltaRef.current = { dx: 0, dy: 0 }
         }
       }
-      // Return to active after touch drag; stay in eat if we were dragging with the bubble open.
       setPetState((current) => (current === 'touch' ? 'active' : current))
       resetSleepTimer()
     }
@@ -239,22 +326,16 @@ export function Pet() {
   }, [resetSleepTimer])
 
   // -------------------------------------------------------------------------
-  // Interaction handlers
+  // Interaction handlers — pet sprite
   // -------------------------------------------------------------------------
 
   function handleMouseDown(event: React.MouseEvent<HTMLDivElement>) {
     if (event.button !== 0) return
     event.preventDefault()
-
     isDraggingRef.current = true
     lastScreenPosRef.current = { x: event.screenX, y: event.screenY }
     pendingDeltaRef.current = { dx: 0, dy: 0 }
-
-    // In eat state keep the sprite as eat.svg — the bubble stays open and the
-    // pet is draggable but doesn't visually switch to touch.svg.
-    if (petState !== 'eat') {
-      setPetState('touch')
-    }
+    if (petState !== 'eat') setPetState('touch')
     resetSleepTimer()
   }
 
@@ -263,18 +344,13 @@ export function Pet() {
       setPetState('hover')
       resetSleepTimer()
     } else if (petState === 'sleep') {
-      // Wake up on hover too.
       setPetState('active')
       resetSleepTimer()
     }
   }
 
   function handleMouseLeave() {
-    if (petState === 'hover') {
-      setPetState('active')
-      // Don't reset sleep timer here — going back to active should let the
-      // timer count from when the user last moved the cursor away.
-    }
+    if (petState === 'hover') setPetState('active')
   }
 
   function handleDoubleClick() {
@@ -284,10 +360,15 @@ export function Pet() {
       return
     }
     if (petState === 'active' || petState === 'hover') {
-      setPetState('eat')
-      setJournalText('')
+      // Open Focus Mode (input step).
+      setFocusStep('input')
+      setFocusRawTask('')
+      setFocusReframedTask('')
+      setFocusReframeError('')
+      setFocusDebriefText('')
       setSubmitStatus({ kind: 'idle' })
       setShowWinCelebrateSpriteInEat(false)
+      setPetState('eat')
       resetSleepTimer()
     }
   }
@@ -299,25 +380,30 @@ export function Pet() {
     }
   }
 
-  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Escape') {
-      dismissEatState()
-    } else if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault()
-      void handleSubmit()
-    }
-  }
+  // -------------------------------------------------------------------------
+  // Dismiss helpers
+  // -------------------------------------------------------------------------
 
-  function dismissEatState() {
+  function dismissBubble() {
     clearBurpScheduleTimeouts()
+    clearFocusCountdown()
     setJournalOverlay({ kind: 'none' })
     setShowWinCelebrateSpriteInEat(false)
     window.hana.setBubbleVisible(false)
     setPetState('active')
     setJournalText('')
     setSubmitStatus({ kind: 'idle' })
+    setFocusStep('off')
+    setFocusRawTask('')
+    setFocusReframedTask('')
+    setFocusReframeError('')
+    setFocusDebriefText('')
     resetSleepTimer()
   }
+
+  // -------------------------------------------------------------------------
+  // Burp animation (reused for both journal and debrief submit)
+  // -------------------------------------------------------------------------
 
   function scheduleBurpAnimationThenFinish(): Promise<void> {
     clearBurpScheduleTimeouts()
@@ -332,27 +418,30 @@ export function Pet() {
 
       scheduleStep(BURP_FRAME_MS, () => {
         setJournalOverlay({ kind: 'burp', frame: 1 })
+        scheduleStep(BURP_FRAME_MS, () => {
+          setJournalOverlay({ kind: 'burp', frame: 2 })
           scheduleStep(BURP_FRAME_MS, () => {
-            setJournalOverlay({ kind: 'burp', frame: 2 })
-            scheduleStep(BURP_FRAME_MS, () => {
-              setJournalOverlay({ kind: 'none' })
-              setActiveIdleUsesWinSprite(true)
-              setShowWinCelebrateSpriteInEat(true)
-              clearBurpScheduleTimeouts()
-              resolve()
-            })
+            setJournalOverlay({ kind: 'none' })
+            setActiveIdleUsesWinSprite(true)
+            setShowWinCelebrateSpriteInEat(true)
+            clearBurpScheduleTimeouts()
+            resolve()
           })
+        })
       })
     })
   }
 
-  async function handleSubmit() {
+  // -------------------------------------------------------------------------
+  // Classic journal submit (existing flow, unchanged)
+  // -------------------------------------------------------------------------
+
+  async function handleJournalSubmit() {
     const trimmedText = journalText.trim()
     if (!trimmedText) {
-      dismissEatState()
+      dismissBubble()
       return
     }
-
     setSubmitStatus({ kind: 'submitting' })
     setJournalOverlay({ kind: 'processing' })
 
@@ -361,26 +450,223 @@ export function Pet() {
     if (result.ok) {
       const winWord = result.winsCount === 1 ? 'win' : 'wins'
       const feedbackMessage =
-        result.winsCount > 0
-          ? `✓ ${result.winsCount} ${winWord} saved!`
-          : '✓ Noted!'
+        result.winsCount > 0 ? `✓ ${result.winsCount} ${winWord} saved!` : '✓ Noted!'
       setSubmitStatus({ kind: 'success', message: feedbackMessage })
       setJournalText('')
 
       if (result.winsCount > 0) {
         await scheduleBurpAnimationThenFinish()
-        setTimeout(() => {
-          dismissEatState()
-        }, SUCCESS_DISMISS_MS)
+        setTimeout(() => dismissBubble(), SUCCESS_DISMISS_MS)
       } else {
         setJournalOverlay({ kind: 'none' })
-        setTimeout(() => {
-          dismissEatState()
-        }, SUCCESS_DISMISS_MS)
+        setTimeout(() => dismissBubble(), SUCCESS_DISMISS_MS)
       }
     } else {
       setJournalOverlay({ kind: 'none' })
       setSubmitStatus({ kind: 'error', message: result.error })
+    }
+  }
+
+  function handleJournalKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Escape') dismissBubble()
+    else if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      void handleJournalSubmit()
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Focus Mode handlers
+  // -------------------------------------------------------------------------
+
+  async function handleFocusInputSubmit() {
+    const trimmedTask = focusRawTask.trim()
+    if (!trimmedTask) {
+      dismissBubble()
+      return
+    }
+    setFocusStep('reframing')
+    setFocusReframeError('')
+
+    const result = await window.hana.reframeTask(trimmedTask)
+
+    if (result.ok) {
+      setFocusReframedTask(result.reframed)
+      setFocusDurationMins(result.durationMins)
+      setFocusStep('confirm')
+    } else {
+      setFocusReframeError(result.error)
+      setFocusStep('input') // drop back to input so user can retry
+    }
+  }
+
+  function handleFocusInputKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Escape') dismissBubble()
+    else if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      void handleFocusInputSubmit()
+    }
+  }
+
+  function handleAccept() {
+    setFocusStep('timer')
+    startFocusCountdown(focusDurationMins)
+  }
+
+  function handleNah() {
+    // Loop back to input, pre-filled with the original task.
+    setFocusStep('input')
+    setFocusReframedTask('')
+    setFocusReframeError('')
+    // focusRawTask stays so the textarea shows their original text.
+  }
+
+  async function handleDebriefSubmit() {
+    const trimmedDebrief = focusDebriefText.trim()
+    // Save whatever the user wrote as a win, then burp.
+    const textToSave = trimmedDebrief || `Worked on: ${focusReframedTask}`
+
+    setSubmitStatus({ kind: 'submitting' })
+    setJournalOverlay({ kind: 'processing' })
+
+    const result = await window.hana.submitJournal(textToSave, todayISO())
+
+    if (result.ok) {
+      setSubmitStatus({ kind: 'success', message: '✓ Session saved!' })
+      await scheduleBurpAnimationThenFinish()
+      setTimeout(() => dismissBubble(), SUCCESS_DISMISS_MS)
+    } else {
+      // Burp anyway — the user still did the work.
+      setJournalOverlay({ kind: 'none' })
+      setSubmitStatus({ kind: 'idle' })
+      await scheduleBurpAnimationThenFinish()
+      setTimeout(() => dismissBubble(), SUCCESS_DISMISS_MS)
+    }
+  }
+
+  function handleDebriefKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Escape') dismissBubble()
+    else if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      void handleDebriefSubmit()
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Render helpers — bubble content per focusStep
+  // -------------------------------------------------------------------------
+
+  function renderFocusBubbleContent() {
+    // Burp / success overlay takes priority across all steps.
+    if (journalOverlay.kind === 'burp' || submitStatus.kind === 'success') {
+      return (
+        <p className="bubble-feedback bubble-feedback-success">
+          {submitStatus.kind === 'success' ? submitStatus.message : '🎉'}
+        </p>
+      )
+    }
+
+    switch (focusStep) {
+      case 'input':
+        return (
+          <>
+            {focusReframeError && (
+              <p className="bubble-feedback bubble-feedback-error">{focusReframeError}</p>
+            )}
+            <textarea
+              ref={textareaRef}
+              className="bubble-textarea"
+              value={focusRawTask}
+              placeholder="What's on your mind today?"
+              onChange={(e) => setFocusRawTask(e.target.value)}
+              onKeyDown={handleFocusInputKeyDown}
+              rows={3}
+            />
+            <div className="bubble-actions">
+              <button
+                type="button"
+                className="bubble-submit-button"
+                onClick={() => void handleFocusInputSubmit()}
+              >
+                Go ↵
+              </button>
+            </div>
+          </>
+        )
+
+      case 'reframing':
+        return (
+          <p className="bubble-feedback bubble-feedback-loading">Thinking…</p>
+        )
+
+      case 'confirm':
+        return (
+          <>
+            <p className="focus-challenge-card">{focusReframedTask}</p>
+            <div className="accept-nah-row">
+              <button
+                type="button"
+                className="btn-accept"
+                onClick={handleAccept}
+              >
+                ✊ Accept
+              </button>
+              <button
+                type="button"
+                className="btn-nah"
+                onClick={handleNah}
+              >
+                ↩ Nah, something else
+              </button>
+            </div>
+          </>
+        )
+
+      case 'timer':
+        return (
+          <>
+            <p className="focus-timer">{formatCountdown(focusSecondsLeft)}</p>
+            <p className="focus-timer-label">you're doing it.</p>
+          </>
+        )
+
+      case 'debrief': {
+        const isSubmitting = submitStatus.kind === 'submitting'
+        return (
+          <>
+            <p className="focus-debrief-prompt">
+              What did you accomplish in {focusDurationMins} min?
+            </p>
+            <textarea
+              ref={debriefTextareaRef}
+              className="bubble-textarea"
+              value={focusDebriefText}
+              placeholder="I worked on…"
+              onChange={(e) => setFocusDebriefText(e.target.value)}
+              onKeyDown={handleDebriefKeyDown}
+              disabled={isSubmitting}
+              rows={3}
+            />
+            {!isSubmitting && (
+              <div className="bubble-actions">
+                <button
+                  type="button"
+                  className="bubble-submit-button"
+                  onClick={() => void handleDebriefSubmit()}
+                >
+                  Done ↵
+                </button>
+              </div>
+            )}
+            {isSubmitting && (
+              <p className="bubble-feedback bubble-feedback-loading">Saving…</p>
+            )}
+          </>
+        )
+      }
+
+      default:
+        return null
     }
   }
 
@@ -389,6 +675,7 @@ export function Pet() {
   // -------------------------------------------------------------------------
 
   const showBubble = petState === 'eat'
+  const isFocusMode = focusStep !== 'off'
 
   return (
     <div className="pet-root">
@@ -397,57 +684,65 @@ export function Pet() {
           <button
             type="button"
             className="bubble-close-button"
-            onClick={dismissEatState}
+            onClick={dismissBubble}
             aria-label="Close"
           >
             ✕
           </button>
-          {submitStatus.kind === 'success' ? (
-            <p className="bubble-feedback bubble-feedback-success">{submitStatus.message}</p>
-          ) : submitStatus.kind === 'error' ? (
-            <div className="bubble-error-block">
-              <p className="bubble-feedback bubble-feedback-error">{submitStatus.message}</p>
-              <button
-                type="button"
-                className="bubble-retry-button"
-                onClick={() => void handleSubmit()}
-              >
-                Retry
-              </button>
-              <button
-                type="button"
-                className="bubble-cancel-button"
-                onClick={dismissEatState}
-              >
-                Cancel
-              </button>
-            </div>
+
+          {isFocusMode ? (
+            renderFocusBubbleContent()
           ) : (
-            <textarea
-              ref={textareaRef}
-              className="bubble-textarea"
-              value={journalText}
-              placeholder="What's your win right now?"
-              onChange={(e) => setJournalText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={submitStatus.kind === 'submitting'}
-              rows={3}
-            />
+            <>
+              {submitStatus.kind === 'success' ? (
+                <p className="bubble-feedback bubble-feedback-success">{submitStatus.message}</p>
+              ) : submitStatus.kind === 'error' ? (
+                <div className="bubble-error-block">
+                  <p className="bubble-feedback bubble-feedback-error">{submitStatus.message}</p>
+                  <button
+                    type="button"
+                    className="bubble-retry-button"
+                    onClick={() => void handleJournalSubmit()}
+                  >
+                    Retry
+                  </button>
+                  <button
+                    type="button"
+                    className="bubble-cancel-button"
+                    onClick={dismissBubble}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <textarea
+                  ref={textareaRef}
+                  className="bubble-textarea"
+                  value={journalText}
+                  placeholder="What's your win right now?"
+                  onChange={(e) => setJournalText(e.target.value)}
+                  onKeyDown={handleJournalKeyDown}
+                  disabled={submitStatus.kind === 'submitting'}
+                  rows={3}
+                />
+              )}
+              {submitStatus.kind === 'submitting' && (
+                <p className="bubble-feedback bubble-feedback-loading">Saving…</p>
+              )}
+              {submitStatus.kind === 'idle' && (
+                <div className="bubble-actions">
+                  <button
+                    type="button"
+                    className="bubble-submit-button"
+                    onClick={() => void handleJournalSubmit()}
+                  >
+                    Save win ↵
+                  </button>
+                </div>
+              )}
+            </>
           )}
-          {submitStatus.kind === 'submitting' && (
-            <p className="bubble-feedback bubble-feedback-loading">Saving…</p>
-          )}
-          {submitStatus.kind === 'idle' && (
-            <div className="bubble-actions">
-              <button
-                type="button"
-                className="bubble-submit-button"
-                onClick={() => void handleSubmit()}
-              >
-                Save win ↵
-              </button>
-            </div>
-          )}
+
           <div className="speech-bubble-tail" />
         </div>
       )}
