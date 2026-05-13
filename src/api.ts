@@ -41,6 +41,67 @@ export type JournalSubmitResult = {
   message: string
 }
 
+export type EisenhowerQuadrant = 'urgentImportant' | 'notUrgentImportant'
+
+export type EisenhowerGoalRow = {
+  goal: Goal
+  quadrant: EisenhowerQuadrant
+  weeksToDeadline: number
+  recentWinsInArea: number
+  weeklyAverageInArea: number
+}
+
+export type EisenhowerPayload = {
+  urgentImportant: EisenhowerGoalRow[]
+  notUrgentImportant: EisenhowerGoalRow[]
+}
+
+export type DashboardChartArea = 'finance' | 'social' | 'growth' | 'health' | 'career'
+
+export type DashboardWeekBucketPayload = {
+  mondayISO: string
+  weekLabel: string
+  totalWins: number
+  rawCountsByArea: Record<DashboardChartArea, number>
+  carriedByArea?: Record<DashboardChartArea, number>
+}
+
+export type DashboardGoalProgressPayload = {
+  goalId: string
+  title: string
+  area: LifeArea
+  targetDate: string
+  weeklyMilestone: string | null
+  winsThisCalendarWeek: number
+  targetWinsPerWeek: number
+  pace01: number
+}
+
+export type DashboardChartSeriesMode = 'perWeek' | 'cumulative'
+
+export type DashboardPayload = {
+  range: '30d' | '90d' | 'all'
+  priority: { headline: string; evidence: string[] }
+  driftAlerts: Array<{
+    areaLabel: string
+    goalTitle: string
+    weeksQuiet: number
+    weeksToDeadlineRounded: number
+    message: string
+  }>
+  eisenhower: EisenhowerPayload
+  chart: {
+    weeks: DashboardWeekBucketPayload[]
+    areaSeriesCarried: Record<DashboardChartArea, number[]>
+    totalSeries: number[]
+    areaSeriesCumulative: Record<DashboardChartArea, number[]>
+    totalSeriesCumulative: number[]
+  }
+  goalProgress: DashboardGoalProgressPayload[]
+}
+
+export type DashboardNowPayload = { ok: true; action: string; citedReason: string }
+
 async function parseJsonOrThrow<T>(response: Response): Promise<T> {
   let json: unknown
   try {
@@ -134,4 +195,14 @@ export async function updateWinAreas(winId: string, areas: LifeArea[]): Promise<
     body: JSON.stringify({ areas }),
   })
   await parseJsonOrThrow<{ ok: boolean }>(response)
+}
+
+export async function fetchDashboard(range: DashboardPayload['range']): Promise<DashboardPayload> {
+  const response = await fetch(`/api/dashboard?range=${encodeURIComponent(range)}`)
+  return parseJsonOrThrow<DashboardPayload>(response)
+}
+
+export async function fetchDashboardNow(): Promise<DashboardNowPayload> {
+  const response = await fetch('/api/dashboard/now')
+  return parseJsonOrThrow<DashboardNowPayload>(response)
 }

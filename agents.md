@@ -18,7 +18,7 @@ GrowthOS (repo: `win-calendar`) is a personal monthly calendar that shows Alice'
 - **Phase 7 — Momentum Heatmap** *(done, branch `feature/aliceos`)*: a third view (Year). GitHub-style 52×7 day grid; 5 separate streams one per life area. Cell intensity goes tint → full → dark. Hover for tooltip.
 - **Phase 8 — Goal System + Eisenhower Layer** *(done, branch `feature/aliceos`)*: Goals view (5th toggle). Full CRUD for goals with area/deadline/milestone/status. Goals saved to `~/.win-calendar/goals.json`. Morning email appends an Eisenhower grid (Urgent+Important / Important) computed from active goals + win history. Urgency = deadline ≤ 6 weeks AND win pace below 2/week in that area.
 - **Phase 9 — Orbit trajectory** *(done)*: sixth header toggle (**Orbit**). SVG spiral places every win in chronological order (center = earliest, outer edge = latest); a hairline path connects them as a single growth trajectory; dots are colored by primary life area; hover shows date + title; click opens `WinDetail`.
-- **Phase 10 — Dashboard View** *(not started)*: seventh header toggle (**Dashboard**). Brings the Decision Engine in-app: growth portfolio chart (5 area lines + total line, hand-written SVG), active goals + progress, Eisenhower grid, today's suggestion, "What to do now" button. Decision Engine Layer 3 (Synthesis). Prerequisite: Phase 9 complete.
+- **Phase 10 — Dashboard + Decision Engine** *(done)*: seventh header toggle (**Dashboard**). `GET /api/dashboard` aggregates revealed wins only, runs Layer 3 synthesis in `server/src/decision-engine.ts`, returns chart buckets + Eisenhower grid + drift alerts + pace rows. **`GET /api/dashboard/now`** returns a deterministic "what to do now" suggestion (no LLM). **`GET /api/wins`** contract unchanged. Morning emails include a short **Growth compass** block synthesized from the same priority rules.
 - **Phase 11 — Life Map** *(not started)*: eighth header toggle (**Map**). Force-directed SVG graph connecting life areas → goals → win clusters. Shows the shape of your life as a connected map. Simple, calm, no new dependencies. Prerequisite: Phase 10 complete.
 
 ## Design Base
@@ -37,7 +37,7 @@ Reference image: a minimal monthly calendar with uppercase day labels (MON–SUN
 - **Frontend**: React 18 + TypeScript, bundled with Vite. Client-side SPA, single route (the current month).
 - **Desktop pet**: Electron app in `desktop/`. Self-contained package with its own `package.json`. Main process (`desktop/src/main.ts`) creates a frameless, transparent, always-on-top `BrowserWindow`. Renderer (`desktop/src/renderer/`) is a React app built by a separate Vite config. The pet submits wins through the existing Hono server via IPC → Node `fetch` (no CORS). Position is persisted in `app.getPath('userData')/hana-position.json`.
 - **Backend**: local Hono server on `127.0.0.1:8787`, run via `tsx watch`. Both start together with `npm run dev` (via `concurrently`). Vite dev server proxies `/api/*` to the Hono server.
-- **State**: local component state only, no global store. `App` owns the `config` gate, the fetched `winsByDate`, the visible month, the selected win (for detail modal), whether the journal composer is open, and the `activeView` (`'month' | 'bloom' | 'year' | 'list' | 'goals' | 'orbit' | 'dashboard' | 'map'`). `activeView` is passed to `Calendar`, which renders the appropriate view. `GoalsView` manages its own goals state internally.
+- **State**: local component state only, no global store. `App` owns the `config` gate, the fetched `winsByDate`, the visible month, the selected win (for detail modal), whether the journal composer is open, and the `activeView` (`'month' | 'bloom' | 'year' | 'list' | 'goals' | 'orbit' | 'dashboard'`). `activeView` is passed to `Calendar`, which renders the appropriate view. `GoalsView` manages its own goals state internally. **Map** view will add an eighth mode in Phase 11.
 - **Styling**: hand-written CSS with design tokens in `:root` custom properties (no Tailwind, no CSS-in-JS).
 - **Week start**: Monday (MON–SUN order).
 - **Date math**: native `Date` — first weekday is `(jsWeekday + 6) % 7`. Server-side timezone math is done with `Intl.DateTimeFormat` offsets, no date library.
@@ -48,6 +48,7 @@ Reference image: a minimal monthly calendar with uppercase day labels (MON–SUN
 - **Secrets live in `server/.env`, never in code, never in user config.** Two env vars are required at boot: `AI_GATEWAY_API_KEY` and `RESEND_API_KEY`. An optional `RESEND_FROM_EMAIL` defaults to `onboarding@resend.dev`. The env file is loaded with `dotenv` at server bootstrap from `server/.env`; see `server/.env.example` for the shape. Git blocks `server/.env` via the global `.env*` ignore.
 - **Multi-tenant posture**: LLM and email keys are **operator-owned** (one Resend account, one AI Gateway key for the whole app). Per-user config (`~/.win-calendar/config.json`) holds **only** Obsidian path, email, timezone, and reveal hour — zero API material.
 - **Network posture**: Hono binds to `127.0.0.1` only. `readConfig()` is the single accessor; `toPublicConfig()` is a no-op strip now that keys don't live there, but the function stays as a future safety belt.
+- **Decision Engine (Dashboard)**: `GET /api/dashboard` respects the same reveal filter as `/api/wins`, then runs Layer 3 synthesis in `server/src/decision-engine.ts` (weekly growth chart + Eisenhower snapshot + drift alerts + goal pacing). `GET /api/dashboard/now` emits a deterministic **next block** recommendation (no runtime LLM call). When a journal submit schedules the morning email, the server appends a **`Growth compass`** block — the same `buildPriorityCard()` / `formatDecisionEngineEmailParagraph()` pair used for the in-app priority card.
 
 ### Key Architecture Decisions
 
@@ -75,7 +76,7 @@ Reference image: a minimal monthly calendar with uppercase day labels (MON–SUN
 
 **Parser duplication is intentional.** `src/wins.ts` (browser) and `server/src/timeline-parser.ts` (node) are intentionally two copies of the same parser. They must stay in lockstep. If you change one, change the other in the same edit, or the server will serve wins the UI can't render.
 
-**SVG-only for all visualisations.** Bloom, Orbit, Heatmap, and the upcoming Dashboard chart, Life Map graph are all hand-written SVG. No D3, no Chart.js, no canvas. The data shapes are simple enough that bespoke SVG math is shorter and more maintainable than a library dependency. This rule holds for Phase 10 and Phase 11.
+**SVG-only for all visualisations.** Bloom, Year heatmap, Orbit, and the Dashboard Growth portfolio chart (plus the future Life Map graph) are all hand-written SVG. No D3, no Chart.js, no canvas.
 
 **Force simulation for Life Map is hand-written.** Phase 11 uses a simple iterative force-directed layout (repulsion + spring + centering, ~60 lines) computed in a `useEffect` on mount. No D3-force, no physics library. Nodes settle after ~120 frames at 60fps; the result is then static (no continuous animation). See `src/MapView.tsx` when Phase 11 lands.
 
@@ -88,21 +89,21 @@ Reference image: a minimal monthly calendar with uppercase day labels (MON–SUN
 |------|-------|---------|
 | `index.html` | ~11 | Vite entry HTML. Single `#root` mount point, no meta chrome beyond viewport + title. |
 | `src/main.tsx` | ~11 | React bootstrap. Mounts `<App />` in `StrictMode` and imports `styles.css`. |
-| `src/App.tsx` | ~180 | Top-level component. Calls `fetchConfig()` / `fetchWins()` on mount; gates on `onboarded`; owns visible month state, selected win, whether the journal composer is open, and `activeView` (`'month' | 'bloom' | 'year' | 'list' | 'goals' | 'orbit' | 'dashboard' | 'map'`). Exposes `reload()` so the composer can refresh the calendar after submit. |
-| `src/Calendar.tsx` | ~320 | Month grid + win titles + view toggle (Month / Bloom / Year / List / Goals / Orbit / Dashboard / Map when phases land). Renders the appropriate sub-view based on `activeView`. |
+| `src/App.tsx` | ~178 | Top-level component. Calls `fetchConfig()` / `fetchWins()` on mount; gates on `onboarded`; owns visible month state, selected win, whether the journal composer is open, and `activeView` (`'month' | 'bloom' | 'year' | 'list' | 'goals' | 'orbit' | 'dashboard'` — **Map** joins in Phase 11). Exposes `reload()` so the composer can refresh the calendar after submit. |
+| `src/Calendar.tsx` | ~345 | Month grid + win titles + view toggle (Month / Bloom / Year / List / Goals / Orbit / Dashboard). Map toggle lands in Phase 11. Renders the appropriate sub-view based on `activeView`. |
 | `src/WinDetail.tsx` | ~85 | The detail modal opened when a win title is clicked. Renders lightweight inline markdown (paragraphs + `**bold**`). Closes on backdrop click, the × button, or ESC (ESC is handled in `App`). |
 | `src/Onboarding.tsx` | ~115 | First-run form. Per-user fields only: Obsidian path, email, timezone (auto-detected), reveal hour. API keys are operator-managed and never asked here. Posts to `/api/config` and calls `onComplete` on success. |
 | `src/JournalComposer.tsx` | ~180 | Nightly journal modal. Textarea + optional dictation via Web Speech API. On submit, shows the returned "Great job…" message and nothing else — the wins themselves never come back to the client. |
-| `src/api.ts` | ~60 | Typed fetch wrappers for `/api/config`, `/api/wins`, `/api/journal`, `/api/goals`. All error paths raise `Error` with the server's message. |
+| `src/api.ts` | ~205 | Typed fetch wrappers for `/api/config`, `/api/wins`, `/api/journal`, `/api/goals`, `/api/dashboard`, `/api/dashboard/now`. Raises `Error` with the server's message on failure paths. |
 | `src/wins.ts` | ~155 | Deterministic timeline-markdown parser (browser copy). Exports `Win`, `WinsByDate`, `LifeArea`, `LIFE_AREAS`, `parseTimelineMarkdown()`. Parses optional `area:` field. |
 | `src/BloomView.tsx` | ~200 | Growth ring bloom SVG view. Groups `winsByDate` into weekly buckets, renders concentric rings (one per week, innermost = oldest) with 5 arc segments per ring (one per life area). Arc thickness ∝ win count. First-load scale animation (once per session). Click arc → popover listing that area/week's wins. |
 | `src/HeatmapView.tsx` | ~230 | Year heatmap. 5 separate area streams stacked vertically. Each stream is a 52×7 grid for that area only, using a tint → full → dark intensity scale. Today outline ring. Hover tooltip scoped to that area's wins. |
 | `src/GoalsView.tsx` | ~310 | Goals CRUD UI. List grouped by status (Active/Achieved/Paused) with area dots, deadlines, weekly milestones, inline status toggle. Inline add/edit form. Manages its own goals state via `/api/goals`. |
 | `src/OrbitView.tsx` | ~220 | Chronological spiral of all wins: connecting path + area-colored dots; hover caption; click opens `WinDetail`. |
-| `src/DashboardView.tsx` | — | *(Phase 10 — not yet created)* Decision Engine synthesis view: growth portfolio chart (5 area lines + total), active goals + progress, Eisenhower grid, today's suggestion, "What to do now" button. |
+| `src/DashboardView.tsx` | ~546 | Dashboard UI: priority + drift + SVG growth chart (`30d` / `90d` / `all`) + goal pace bars + Eisenhower board + Generate → `/api/dashboard/now`. |
 | `src/MapView.tsx` | — | *(Phase 11 — not yet created)* Force-directed life map: life area nodes → goal nodes → win cluster nodes. Hand-written SVG + iterative force simulation. |
 | `src/vite-env.d.ts` | ~6 | Vite client types + the `*.md?raw` module declaration (still used by the example fixture). |
-| `src/styles.css` | ~1020 | Design tokens (including 5 `--ring-*` area color tokens) + all view styles. Single stylesheet. Phase 10 adds `--dashboard-*` tokens if needed. Phase 11 adds `--map-node-*` tokens for node sizing. |
+| `src/styles.css` | ~2800 | Design tokens + Calendar + alternate views + Dashboard (`.dashboard-*`). Future Life Map adds `--map-node-*`. |
 | `example/TIMELINE-finance.md` | — | Example timeline. Used as the fixture/seed for design decisions. Not the live source at runtime. |
 | `vite.config.ts` | ~14 | Vite config. `@vitejs/plugin-react`, dev server on port 5173, `/api` proxy to `127.0.0.1:8787`. |
 | `tsconfig.json` | ~22 | App TS config. `strict`, `noUnusedLocals`, `noUnusedParameters`, `jsx: react-jsx`. |
@@ -113,20 +114,21 @@ Reference image: a minimal monthly calendar with uppercase day labels (MON–SUN
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `server/src/index.ts` | ~45 | Hono app bound to `127.0.0.1:8787`. Loads `server/.env` via `dotenv`. Mounts route modules + `/api/health`. CORS limited to `localhost:5173`. |
+| `server/src/index.ts` | ~57 | Hono app on `127.0.0.1:8787`. Loads `server/.env`. Mounts onboarding, journal, wins, goals, **dashboard**, `/api/health`. CORS: `localhost:5173`. |
 | `server/src/routes/onboarding.ts` | ~55 | `GET /api/config` and `POST /api/config`. Validates Obsidian path, persists with mode 0600. Per-user fields only — no API keys. |
-| `server/src/routes/journal.ts` | ~100 | `POST /api/journal`: writes raw journal → AI Gateway → appends to timeline-life.md → records `revealAt` → schedules Resend email. Returns only `{ ok, winsCount, message }`. Never returns wins. |
+| `server/src/routes/journal.ts` | ~128 | `POST /api/journal`: journal → Claude wins → vault append → `revealAt` → **Growth compass** snippet + Eisenhower + Resend. Returns `{ ok, winsCount, message }` only. |
 | `server/src/routes/wins.ts` | ~40 | `GET /api/wins`: reads timeline-life.md + `.state.json`, filters by `revealAt <= now`, returns `WinsByDate`. |
 | `server/src/routes/goals.ts` | ~90 | `GET/POST /api/goals`, `PATCH/DELETE /api/goals/:goalId`. Full CRUD. |
-| `server/src/routes/energy.ts` | — | *(Phase 9 — not yet created)* `POST /api/energy`: stores energy level + time block. `GET /api/energy/patterns`: returns historical energy model for Decision Engine. |
+| `server/src/routes/energy.ts` | — | *(optional future)* Dedicated energy logging API. Not required today — Dashboard Layer 3 already runs on goals + Eisenhower + timeline; extend when `energy:` lines on wins exist. |
 | `server/src/config-store.ts` | ~80 | Reads/writes `~/.win-calendar/config.json` (mode 0600). Per-user fields only. |
 | `server/src/obsidian.ts` | ~165 | Vault layout + IO. Ensures `WinCalendar/` + `journal/`, creates initial `timeline-life.md`, appends journal entries, reads/writes `.state.json`. |
 | `server/src/claude.ts` | ~105 | AI Gateway wrapper. `generateText` via `ai` SDK. Extracts and validates `ExtractedWin[]`. Despite filename, no direct Anthropic SDK. |
-| `server/src/resend.ts` | ~170 | Resend SDK wrapper. `computeNextRevealInstantISO()` + `scheduleMorningEmail()`. Phase 10 adds Decision Engine synthesis paragraph to the email body. |
-| `server/src/prompts.ts` | ~40 | System prompt for win extraction. Asks for `areas[]`. Strict JSON-only instruction. Phase 9 adds energy extraction prompt. |
+| `server/src/prompts.ts` | ~40 | Win extraction system prompt (areas + JSON contract). |
 | `server/src/goals-store.ts` | ~85 | Reads/writes `~/.win-calendar/goals.json` (mode 0600). |
-| `server/src/eisenhower.ts` | ~75 | Eisenhower grid from goals + win history. Phase 10 integrates this into the in-app Dashboard. |
-| `server/src/decision-engine.ts` | — | *(Phase 10 — not yet created)* Layer 3 synthesis: takes goals, win history, energy patterns → outputs priority card, drift alerts, "What to do now". |
+| `server/src/resend.ts` | ~286 | Resend wrapper. `scheduleMorningEmail()` HTML/text now include optional **Growth compass** block after the win cards. |
+| `server/src/eisenhower.ts` | ~75 | Eisenhower grid from goals + win history — shared by Dashboard + morning email. |
+| `server/src/decision-engine.ts` | ~497 | Layer 3 synthesis: weekly chart bucketing + carry-forward smoothing, drift heuristics (`≥2` quiet weeks vs last tagged win per goal area), Eisenhower-aligned priority copy, deterministic `buildWhatToDoNow()`. |
+| `server/src/routes/dashboard.ts` | ~182 | `GET /api/dashboard`, `GET /api/dashboard/now` — reveal-filtered timeline, goals.json, JSON payload for `DashboardView.tsx`. |
 | `server/src/timeline-parser.ts` | ~110 | Server copy of `src/wins.ts` parser. Kept in lockstep intentionally. |
 | `server/src/map-data.ts` | — | *(Phase 11 — not yet created)* Builds the graph data for MapView: aggregates wins into weekly clusters per area, joins with goals, returns `MapNode[]` + `MapEdge[]`. No SVG logic here — pure data transformation. |
 | `server/tsconfig.json` | ~20 | Node TS config. |

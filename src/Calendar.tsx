@@ -5,8 +5,9 @@ import { HeatmapView } from './HeatmapView'
 import { ListView } from './ListView'
 import { GoalsView } from './GoalsView'
 import { OrbitView } from './OrbitView'
+import { DashboardView } from './DashboardView'
 
-type ActiveView = 'month' | 'bloom' | 'year' | 'list' | 'goals' | 'orbit'
+type ActiveView = 'month' | 'bloom' | 'year' | 'list' | 'goals' | 'orbit' | 'dashboard'
 
 /** Large heading + one-line context for non-month views (month uses the grid header instead). */
 const ALT_VIEW_HEADER: Record<
@@ -32,6 +33,10 @@ const ALT_VIEW_HEADER: Record<
   orbit: {
     heading: 'ORBIT',
     tagline: 'Every win in time — spiral from your first step to now',
+  },
+  dashboard: {
+    heading: 'DASHBOARD',
+    tagline: 'Decision Engine — pacing, Eisenhower, and growth portfolio signals',
   },
 }
 
@@ -235,6 +240,14 @@ export function Calendar({
           >
             Orbit
           </button>
+          <button
+            type="button"
+            className="calendar-view-toggle-button"
+            aria-pressed={activeView === 'dashboard'}
+            onClick={() => onSetView('dashboard')}
+          >
+            Dashboard
+          </button>
         </div>
       </header>
 
@@ -243,6 +256,7 @@ export function Calendar({
       {activeView === 'list' && <ListView winsByDate={winsByDate} onSelectWin={onSelectWin} />}
       {activeView === 'goals' && <GoalsView />}
       {activeView === 'orbit' && <OrbitView winsByDate={winsByDate} onSelectWin={onSelectWin} />}
+      {activeView === 'dashboard' && <DashboardView />}
 
       <div className="calendar-grid" role="grid" style={{ display: activeView !== 'month' ? 'none' : undefined }}>
         <div className="calendar-weekday-row" role="row">

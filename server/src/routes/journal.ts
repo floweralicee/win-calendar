@@ -10,6 +10,8 @@ import {
 import { extractWinsFromJournal } from '../claude.ts'
 import { scheduleMorningEmail } from '../resend.ts'
 import { readGoals } from '../goals-store.ts'
+import { buildPriorityCard, formatDecisionEngineEmailParagraph } from '../decision-engine.ts'
+import type { EisenhowerGrid } from '../eisenhower.ts'
 import { computeEisenhowerGrid } from '../eisenhower.ts'
 import { parseTimelineMarkdown } from '../timeline-parser.ts'
 
@@ -81,17 +83,21 @@ journal.post('/api/journal', async (c) => {
 
   await appendWinsToTimeline(config.obsidianPath, persisted)
 
-  // Compute Eisenhower grid if goals exist — non-fatal if it fails.
-  let eisenhowerGrid = undefined
+  let eisenhowerGrid: EisenhowerGrid | undefined
+  let decisionEmailSnippet: { html: string; text: string } | undefined
   try {
     const userGoals = await readGoals()
+    const timelineSource = await readTimeline(config.obsidianPath)
+    const allWins = parseTimelineMarkdown(timelineSource)
+
     if (userGoals.some((g) => g.status === 'active')) {
-      const timelineSource = await readTimeline(config.obsidianPath)
-      const allWins = parseTimelineMarkdown(timelineSource)
       eisenhowerGrid = computeEisenhowerGrid(userGoals, allWins)
     }
+
+    const priorityCard = buildPriorityCard(userGoals, allWins, eisenhowerGrid)
+    decisionEmailSnippet = formatDecisionEngineEmailParagraph(priorityCard)
   } catch (err) {
-    console.warn('[journal] Eisenhower computation failed (non-fatal):', err)
+    console.warn('[journal] Eisenhower / decision engine email snippet failed (non-fatal):', err)
   }
 
   let scheduledEmailId: string | undefined
@@ -101,6 +107,7 @@ journal.post('/api/journal', async (c) => {
       winsDateISO: dateISO,
       wins: persisted,
       eisenhowerGrid,
+      decisionEngineParagraph: decisionEmailSnippet,
     })
     scheduledEmailId = result.emailId
   } catch (error: unknown) {

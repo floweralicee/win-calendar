@@ -2324,6 +2324,515 @@ body {
 
 }
 
+/* ════════════════════════════════════════════════════════════════════════════
+ * Dashboard — Decision Engine (Stage 10)
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+.dashboard-view {
+  padding: clamp(20px, 3vw, 36px) clamp(16px, 3vw, 42px) clamp(40px, 4vw, 64px);
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(28px, 4vw, 44px);
+  color: var(--day-ink);
+}
+
+.dashboard-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  justify-content: space-between;
+}
+
+.dashboard-range-toggle {
+  display: flex;
+  border: 1px solid var(--rule);
+}
+
+.dashboard-range-button {
+  all: unset;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  cursor: pointer;
+  color: var(--win-muted);
+  border-right: 1px solid var(--rule);
+}
+
+.dashboard-range-toggle .dashboard-range-button:last-child {
+  border-right: none;
+}
+
+.dashboard-range-button[aria-pressed="true"] {
+  background: var(--paper);
+  color: var(--day-ink);
+  font-weight: 600;
+}
+
+.dashboard-range-button:hover,
+.dashboard-range-button:focus-visible {
+  background: var(--win-hover-bg);
+  outline: none;
+}
+
+.dashboard-refresh {
+  all: unset;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  cursor: pointer;
+  color: var(--win-muted);
+}
+
+.dashboard-refresh:hover,
+.dashboard-refresh:focus-visible {
+  background: var(--win-hover-bg);
+  color: var(--day-ink);
+  outline: none;
+}
+
+.dashboard-error {
+  padding: 12px;
+  border: 1px solid #b14a2f;
+  color: #b14a2f;
+  font-size: 13px;
+}
+
+.dashboard-view h2 {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--win-muted);
+  margin: 0 0 12px;
+}
+
+.dashboard-priority {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: clamp(22px, 3vw, 32px);
+}
+
+.dashboard-priority-headline {
+  font-size: clamp(18px, 2.4vw, 24px);
+  line-height: 1.38;
+  color: var(--win-ink);
+  margin: 0 0 16px;
+  max-width: 52rem;
+}
+
+.dashboard-priority-evidence {
+  list-style: disc;
+  margin: 0 0 8px;
+  padding-left: 1.35rem;
+  color: var(--day-ink);
+  font-size: 14px;
+  line-height: 1.52;
+}
+
+.dashboard-priority-evidence li {
+  margin-bottom: 7px;
+}
+
+.dashboard-drift {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: clamp(22px, 3vw, 32px);
+}
+
+.dashboard-drift ul {
+  margin: 0;
+  padding-left: 1.35rem;
+  font-size: 14px;
+  line-height: 1.52;
+}
+
+.dashboard-chart-placeholder {
+  border: 1px dashed var(--rule);
+  padding: 42px clamp(24px, 4vw, 48px);
+  text-align: center;
+  font-size: 14px;
+  color: var(--win-muted);
+}
+
+.dashboard-chart-board {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: clamp(22px, 3vw, 32px);
+  margin-bottom: clamp(22px, 3vw, 32px);
+}
+
+.dashboard-chart-board-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px clamp(14px, 3vw, 24px);
+  margin-bottom: 14px;
+}
+
+.dashboard-chart-board-header h2 {
+  margin: 0;
+}
+
+.dashboard-chart-series-toggle {
+  flex-shrink: 0;
+}
+
+.dashboard-chart-shell {
+  position: relative;
+  overflow: visible;
+}
+
+.dashboard-chart-y-axis-hint {
+  margin: -4px 0 10px;
+  font-size: 11px;
+  color: var(--win-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dashboard-chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.dashboard-chart-gridline {
+  stroke: var(--rule);
+  stroke-width: 1px;
+}
+
+.dashboard-chart-axis-label {
+  fill: var(--win-muted);
+  font-size: 10px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+}
+
+.dashboard-chart-week-label {
+  fill: var(--win-muted);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dashboard-chart-line {
+  fill: none;
+}
+
+.dashboard-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  padding: 14px clamp(14px, 3vw, 22px);
+  margin-top: 8px;
+  border-top: 1px solid var(--rule);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--win-muted);
+}
+
+.dashboard-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.dashboard-chart-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 64px;
+  border: 1px solid rgba(26, 26, 26, 0.2);
+}
+
+.dashboard-chart-legend-swatch[data-area="finance"] { background: var(--ring-finance); }
+.dashboard-chart-legend-swatch[data-area="social"]  { background: var(--ring-social); }
+.dashboard-chart-legend-swatch[data-area="growth"]  { background: var(--ring-growth); }
+.dashboard-chart-legend-swatch[data-area="health"]   { background: var(--ring-health); }
+.dashboard-chart-legend-swatch[data-area="career"]  { background: var(--ring-career); }
+
+.dashboard-chart-legend-swatch-total {
+  background: var(--paper);
+  border-style: dashed;
+}
+
+.dashboard-chart-tooltip {
+  pointer-events: none;
+  position: fixed;
+  z-index: 30;
+  min-width: 180px;
+  max-width: 280px;
+  padding: 10px 12px;
+  background: rgba(253, 252, 250, 0.98);
+  border: 1px solid var(--rule);
+}
+
+.dashboard-chart-tooltip-title {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  color: var(--win-muted);
+}
+
+.dashboard-chart-tooltip-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.dashboard-chart-tooltip-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 5px;
+  color: var(--day-ink);
+}
+
+.dashboard-chart-tooltip-list strong {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.dashboard-chart-tooltip-label-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.dashboard-chart-tooltip-delta {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--win-muted);
+}
+
+.dashboard-chart-tooltip-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 64px;
+  flex-shrink: 0;
+}
+
+.dashboard-chart-tooltip-dot[data-area="finance"] { background: var(--ring-finance); }
+.dashboard-chart-tooltip-dot[data-area="social"]  { background: var(--ring-social); }
+.dashboard-chart-tooltip-dot[data-area="growth"]  { background: var(--ring-growth); }
+.dashboard-chart-tooltip-dot[data-area="health"]   { background: var(--ring-health); }
+.dashboard-chart-tooltip-dot[data-area="career"]   { background: var(--ring-career); }
+
+.dashboard-goals-shell {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: clamp(22px, 3vw, 32px);
+}
+
+.dashboard-goals-shell > h2 ~ p {
+  font-size: 14px;
+  color: var(--win-muted);
+  margin: -4px 0 14px;
+}
+
+.dashboard-goal-progress {
+  padding: 16px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.dashboard-goal-progress:first-of-type {
+  border-top: none;
+}
+
+.dashboard-goal-progress-top {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.dashboard-goal-progress-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dashboard-goal-progress-meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--win-muted);
+}
+
+.dashboard-progress-meter {
+  margin-top: 10px;
+  height: 4px;
+  background: rgba(214, 210, 200, 0.45);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.dashboard-progress-meter-fill {
+  height: 100%;
+  border-radius: 4px;
+  background-color: var(--weekday-ink);
+  opacity: 0.92;
+}
+
+.dashboard-goal-progress-milestone {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--win-ink);
+  line-height: 1.4;
+}
+
+.dashboard-now {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: clamp(26px, 3vw, 36px);
+}
+
+.dashboard-now-lede {
+  font-size: 14px;
+  color: var(--win-muted);
+  margin-top: -4px;
+}
+
+.dashboard-now-button {
+  all: unset;
+  margin-top: 12px;
+  display: inline-flex;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 10px 18px;
+  border: 1px solid var(--rule);
+  cursor: pointer;
+  color: var(--day-ink);
+}
+
+.dashboard-now-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.dashboard-now-button:hover:not(:disabled),
+.dashboard-now-button:focus-visible:not(:disabled) {
+  background: var(--win-hover-bg);
+}
+
+.dashboard-now-result {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+}
+
+.dashboard-now-action {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.42;
+}
+
+.dashboard-now-reason {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--win-muted);
+  line-height: 1.5;
+}
+
+.dashboard-e-shell > h2 {
+  margin-bottom: 16px;
+}
+
+.dashboard-e-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: clamp(14px, 2vw, 22px);
+}
+
+.dashboard-e-quadrant {
+  border: 1px solid var(--rule);
+  padding: 16px 18px clamp(22px, 3vw, 28px);
+  background: rgba(253, 252, 249, 0.75);
+}
+
+.dashboard-e-q-urgent {
+  border-color: rgba(177, 74, 47, 0.35);
+}
+
+.dashboard-e-q-steady {
+  border-color: rgba(114, 114, 168, 0.35);
+}
+
+.dashboard-e-quadrant-label {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.dashboard-e-quadrant-label.accent-urgent {
+  color: #b14a2f;
+}
+
+.dashboard-e-quadrant-label.accent-steady {
+  color: #6161a8;
+}
+
+.dashboard-e-empty,
+.dashboard-e-empty-banner {
+  font-size: 13px;
+  color: var(--win-muted);
+  margin: 10px 0 0;
+  line-height: 1.5;
+}
+
+.dashboard-e-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.dashboard-e-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px 18px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(226, 222, 214, 0.8);
+}
+
+.dashboard-e-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.dashboard-e-milestone {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--win-muted);
+  line-height: 1.4;
+}
+
+.dashboard-e-row-meta {
+  text-align: right;
+  font-size: 12px;
+  color: var(--win-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.dashboard-e-row-meta span {
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: var(--day-ink);
+}
+
 /* ── Bottom-sheet slide-up animation (mobile modals) ───────────────────── */
 
 @keyframes win-detail-slide-up {

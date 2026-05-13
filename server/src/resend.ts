@@ -9,6 +9,8 @@ export type ScheduleMorningEmailInput = {
   wins: PersistedWin[]
   /** When goals are configured, the Eisenhower grid for active goals. */
   eisenhowerGrid?: EisenhowerGrid
+  /** Decision Engine Layer 3 copy — surfaced in Dashboard and echoed here. */
+  decisionEngineParagraph?: { html: string; text: string }
 }
 
 export type ScheduleMorningEmailResult = {
@@ -150,7 +152,12 @@ function renderEisenhowerText(grid: EisenhowerGrid): string {
 
 // ─── Email body rendering ─────────────────────────────────────────────────────
 
-function renderEmailHtml(winsDateISO: string, wins: PersistedWin[], eisenhowerGrid?: EisenhowerGrid): string {
+function renderEmailHtml(
+  winsDateISO: string,
+  wins: PersistedWin[],
+  eisenhowerGrid?: EisenhowerGrid,
+  decisionEngineParagraph?: { html: string; text: string },
+): string {
   const humanDate = formatHumanDate(winsDateISO)
   const blocks = wins
     .map(
@@ -181,6 +188,7 @@ function renderEmailHtml(winsDateISO: string, wins: PersistedWin[], eisenhowerGr
       )}</p>
       <h1 style="margin:0 0 24px;font-size:28px;font-weight:500;color:#1a1a1a;">Look what you did.</h1>
       ${blocks}
+      ${decisionEngineParagraph?.html ?? ''}
       <p style="margin:24px 0 0;font-size:12px;color:#7a7874;">From GrowthOS. Open the app whenever you\u2019re ready.</p>
       ${eisenhowerGrid ? renderEisenhowerHtml(eisenhowerGrid) : ''}
     </div>
@@ -188,7 +196,12 @@ function renderEmailHtml(winsDateISO: string, wins: PersistedWin[], eisenhowerGr
 </html>`
 }
 
-function renderEmailText(winsDateISO: string, wins: PersistedWin[], eisenhowerGrid?: EisenhowerGrid): string {
+function renderEmailText(
+  winsDateISO: string,
+  wins: PersistedWin[],
+  eisenhowerGrid?: EisenhowerGrid,
+  decisionEngineParagraph?: { text: string },
+): string {
   const humanDate = formatHumanDate(winsDateISO)
   const winText = wins
     .map(
@@ -199,8 +212,12 @@ function renderEmailText(winsDateISO: string, wins: PersistedWin[], eisenhowerGr
         `  Why it matters: ${win.whyItMatters}`,
     )
     .join('\n\n')
+  const deText =
+    decisionEngineParagraph && decisionEngineParagraph.text.trim().length > 0
+      ? `\n\n${decisionEngineParagraph.text}\n`
+      : ''
   const goalsText = eisenhowerGrid ? renderEisenhowerText(eisenhowerGrid) : ''
-  return `Yesterday — ${humanDate}\n\nLook what you did.\n\n${winText}\n\nFrom GrowthOS.${goalsText}`
+  return `Yesterday — ${humanDate}\n\nLook what you did.\n\n${winText}${deText}\n\nFrom GrowthOS.${goalsText}`
 }
 
 function formatHumanDate(isoDate: string): string {
@@ -244,8 +261,18 @@ export async function scheduleMorningEmail(
     from,
     to: input.to,
     subject,
-    html: renderEmailHtml(input.winsDateISO, input.wins, input.eisenhowerGrid),
-    text: renderEmailText(input.winsDateISO, input.wins, input.eisenhowerGrid),
+    html: renderEmailHtml(
+      input.winsDateISO,
+      input.wins,
+      input.eisenhowerGrid,
+      input.decisionEngineParagraph,
+    ),
+    text: renderEmailText(
+      input.winsDateISO,
+      input.wins,
+      input.eisenhowerGrid,
+      input.decisionEngineParagraph,
+    ),
   })
 
   if (response.error) {

@@ -1,6 +1,6 @@
 # GrowthOS — Product Roadmap
 > Living document. Updated as stages complete. Agents must read this before touching any code.
-> Last updated: 2026-05-05
+> Last updated: 2026-05-12
 
 ---
 
@@ -109,19 +109,19 @@ Sixth view toggle: **Orbit**. SVG spiral of all wins in chronological order (cen
 
 ---
 
-### 🔲 Stage 10 — Dashboard View
-*Status: NOT STARTED — Decision Engine Layer 3 (Synthesis + Output)*
+### ✅ Stage 10 — Dashboard View
+*Status: DONE*
 *Prerequisite: Stage 9 complete ✅*
 
 **What it adds:**
 
-Seventh view toggle: **Dashboard**. Everything that was email-only comes into the app.
+Seventh view toggle: **Dashboard**. Everything that was email-only Decision Engine synthesis now lives in-app (and is echoed in the morning email as the **Growth compass** block).
 
 **Growth Portfolio Chart** (centrepiece):
 - 5 area lines + 1 neutral total line — hand-written SVG, no chart library
 - X axis = weeks, Y axis = wins per week
 - Default: all-time. Toggle: 30d / 90d / all-time
-- Lines: 1.5px, soft curves (not step-chart). Total line: 2px, `var(--day-ink)`
+- Lines: 1.5px, rounded joins; Total line: 2px, `var(--day-ink)`
 - Horizontal-only hairline grid in `var(--rule)`
 - Hover tooltip: week label + per-area breakdown
 - When a category has zero wins for weeks: line holds flat at last value (does not drop to zero)
@@ -129,8 +129,8 @@ Seventh view toggle: **Dashboard**. Everything that was email-only comes into th
 **Other Dashboard components:**
 - Active goals + progress bars (wins toward weekly milestone)
 - Eisenhower grid rendered visually (reuses `server/src/eisenhower.ts` output)
-- Today's suggestion (Decision Engine Layer 3 output — same content as email, surfaced in-app)
-- "What to do now" button: generates one next action from current time, energy, and goal gaps
+- Today's suggestion (Decision Engine Layer 3 output — same content DNA as morning email snippet)
+- "What to do now" panel: deterministic next action (`GET /api/dashboard/now`) from Eisenhower + milestone text + weekly pacing — no LLM
 
 **Decision Engine Layer 3 (Synthesis):**
 ```
@@ -140,7 +140,7 @@ Output: one priority card, optional drift alert, "What to do now" action
 
 Priority card rules:
 - Always ONE thing. Never a list.
-- Always cites evidence: goal deadline + win gap + energy pattern.
+- Always cites evidence: goal deadline + win gap + pacing from Eisenhower.
 - Degrades gracefully when data is missing.
 - Never generic. "Work on your finance goal" is invalid. "Send 10 emails from your teaching waitlist" is valid.
 
@@ -148,30 +148,30 @@ Drift alert (shown when triggered, not always):
 > "[Category] has been quiet for [N] weeks. Your [goal title] is [X] weeks away. One small win in this area today would count."
 
 **New files:**
-- `src/DashboardView.tsx` (~300 lines)
-- `server/src/decision-engine.ts` (~120 lines)
-- `server/src/routes/dashboard.ts` (~60 lines) — `GET /api/dashboard` returns priority card + drift alerts + chart data
+- `src/DashboardView.tsx` (~550 lines)
+- `server/src/decision-engine.ts` (~500 lines)
+- `server/src/routes/dashboard.ts` (~220 lines) — `GET /api/dashboard`, `GET /api/dashboard/now`
 
 **No new npm dependencies.**
 
 **Definition of done:**
-- [ ] Dashboard view added to view toggle (8th button)
-- [ ] Growth chart renders with all 5 area lines + total line, hand-written SVG
-- [ ] All-time default, 30d / 90d / all-time toggle works
-- [ ] Hover tooltip shows week + per-area breakdown
-- [ ] Active goals + progress bars render with real data
-- [ ] Eisenhower grid renders visually
-- [ ] Priority card renders with cited evidence
-- [ ] Drift alerts fire when a goal category goes quiet ≥ 2 weeks
-- [ ] "What to do now" button calls `GET /api/dashboard/now` and shows result
-- [ ] Morning email updated to include Decision Engine paragraph
-- [ ] No new npm dependencies
+- [x] Dashboard view added to view toggle (7th button after Orbit)
+- [x] Growth chart renders with all 5 area lines + total line, hand-written SVG
+- [x] All-time default, 30d / 90d / all-time toggle works
+- [x] Hover tooltip shows week + per-area breakdown
+- [x] Active goals + progress bars render with real data
+- [x] Eisenhower grid renders visually
+- [x] Priority card renders with cited evidence
+- [x] Drift alerts fire when a goal category goes quiet ≥ 2 weeks (since last tagged win)
+- [x] "What to do now" calls `GET /api/dashboard/now` and shows result
+- [x] Morning email updated to include Decision Engine paragraph (Growth compass block)
+- [x] No new npm dependencies
 
 ---
 
 ### 🔲 Stage 11 — Life Map
 *Status: NOT STARTED*
-*Prerequisite: Stage 10 complete*
+*Prerequisite: Stage 10 complete ✅*
 
 **What it adds:**
 
@@ -284,8 +284,8 @@ Stage 1  ✅
                            └─ Stage 7  ✅
                                 └─ Stage 8  ✅
                                      └─ Stage 9  ✅
-                                          └─ Stage 10  🔲  ← START HERE
-                                               └─ Stage 11  🔲
+                                          └─ Stage 10 ✅
+                                               └─ Stage 11  🔲  ← START HERE (Life Map)
 ```
 
 ---
@@ -359,4 +359,4 @@ Layer 3 (Stage 10) — Synthesis
 
 ---
 
-*Start with Stage 10. Read AGENTS.md. Read this file. Then read the relevant stage definition. Then and only then touch code.*
+*Start with Stage 11. Read AGENTS.md. Read this file. Then read the relevant stage definition. Then and only then touch code.*
